@@ -4,14 +4,13 @@
 
 @layer base {
   :root {
-    --color-brand: 196 92 38;
+    --color-brand: 0 104 74;   /* #00684A */
     --color-forest: 45 106 79;
-    --radius: 0.75rem;
+    --sidebar-bg: #001E2B;     /* MongoDB Forest */
+    --radius: 6px;
   }
 
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   html {
     -webkit-font-smoothing: antialiased;
@@ -20,105 +19,132 @@
   }
 
   body {
-    @apply bg-cream text-[#1a1a2e] font-sans;
+    @apply bg-[#f7f8fa] text-[#001E2B] font-sans;
     font-feature-settings: 'cv11', 'ss01';
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    @apply font-bold tracking-tight;
   }
 
   ::selection {
-    @apply bg-brand-200 text-brand-900;
+    @apply bg-brand-100 text-brand-900;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-brand-200 rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-brand-300;
-  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-brand-200 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-brand-300; }
+
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
 }
 
 @layer components {
+
+  /* ── Buttons ─────────────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white font-semibold text-sm
-           hover:bg-brand-600 active:scale-[0.98] transition-all duration-150 shadow-warm
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md
+           bg-brand-500 text-white font-semibold text-sm
+           hover:bg-brand-600 active:scale-[0.98]
+           transition-all duration-150 shadow-warm
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
+           focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-brand-600 font-semibold text-sm
-           border border-brand-200 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md
+           bg-white text-brand-600 font-semibold text-sm
+           border border-brand-200 hover:bg-brand-50 active:scale-[0.98]
+           transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
+           focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[#1a1a2e] font-medium text-sm
-           hover:bg-brand-50 active:scale-[0.98] transition-all duration-150
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md
+           text-[#001E2B] font-medium text-sm
+           hover:bg-brand-50 hover:text-brand-700 active:scale-[0.98]
+           transition-all duration-150
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
+           focus-visible:ring-offset-2;
   }
 
   .btn-forest {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-forest-500 text-white font-semibold text-sm
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md
+           bg-forest-500 text-white font-semibold text-sm
            hover:bg-forest-600 active:scale-[0.98] transition-all duration-150
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest-500
+           focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  /* ── Cards ───────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-2xl shadow-card border border-white/60;
+    @apply bg-white rounded-lg shadow-card border border-gray-200/70;
   }
 
   .card-hover {
-    @apply card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-200 cursor-pointer;
+    @apply card hover:shadow-card-hover hover:-translate-y-0.5
+           hover:border-brand-200 transition-all duration-200 cursor-pointer;
   }
 
+  /* ── Inputs ──────────────────────────────────────────── */
   .input-field {
-    @apply w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#1a1a2e] placeholder-gray-400
-           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-150;
+    @apply w-full px-3 py-2 rounded-md border border-gray-300 bg-white text-sm
+           text-[#001E2B] placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400
+           transition-all duration-150;
   }
 
+  /* ── Badge ───────────────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs font-semibold;
   }
 
+  /* ── Sidebar ─────────────────────────────────────────── */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+           text-[#889397] hover:bg-white/10 hover:text-white
+           transition-all duration-150 relative;
+  }
+
+  .sidebar-link.active {
+    @apply bg-white/10 text-white;
+  }
+
+  .sidebar-link.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+    background: #00ED64;
+    border-radius: 0 3px 3px 0;
+  }
+
+  /* ── Typography helpers ──────────────────────────────── */
   .section-label {
     @apply text-xs font-bold uppercase tracking-widest text-brand-500;
   }
 
+  .page-header {
+    @apply text-2xl font-bold text-[#001E2B] tracking-tight;
+  }
+
+  /* ── Gradients ───────────────────────────────────────── */
   .gradient-hero {
-    background: linear-gradient(135deg, #fdf8f3 0%, #f9ede0 50%, #fdf8f3 100%);
+    background: linear-gradient(160deg, #001E2B 0%, #023430 60%, #001E2B 100%);
   }
 
   .gradient-forest {
     background: linear-gradient(135deg, #f0f9f4 0%, #d8f0e5 100%);
   }
 
-  .stat-ring {
-    @apply relative inline-flex items-center justify-center;
-  }
-
-  .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600
-           hover:bg-brand-50 hover:text-brand-700 transition-all duration-150;
-  }
-
-  .sidebar-link.active {
-    @apply bg-brand-50 text-brand-700 font-semibold;
-  }
-
-  .page-header {
-    @apply text-2xl font-bold text-[#1a1a2e] tracking-tight;
-  }
-
+  /* ── Progress ────────────────────────────────────────── */
   .progress-bar {
-    @apply h-2 rounded-full bg-brand-100 overflow-hidden;
+    @apply h-1.5 rounded-full bg-brand-100 overflow-hidden;
   }
 
   .progress-fill {
@@ -127,9 +153,7 @@
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 
   .bg-noise {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");

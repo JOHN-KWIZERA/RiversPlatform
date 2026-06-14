@@ -1,4 +1,4 @@
-import { MapPin, Users, Clock, Zap, CheckCircle2 } from 'lucide-react';
+import { MapPin, Users, Clock, Zap, CheckCircle2, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { cn, formatCurrency, categoryColor, progressPercent } from '../../lib/utils';
@@ -26,7 +26,7 @@ export default function CampaignCard({ campaign, onDonate }) {
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-brand-100 to-parchment flex items-center justify-center">
-            <span className="text-4xl">🌍</span>
+            <Globe size={36} className="text-brand-300" />
           </div>
         )}
         {/* Badges */}

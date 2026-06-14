@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight, ShieldCheck, BarChart2, Users, Leaf,
   CheckCircle2, MapPin, Zap, ChevronRight,
-  BookOpen, HeartPulse, Briefcase, Home, UtensilsCrossed,
+  BookOpen, HeartPulse, Briefcase, Home, UtensilsCrossed, TrendingUp,
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import CampaignCard from '../components/campaigns/CampaignCard';
 import DonationModal from '../components/donations/DonationModal';
 import Button from '../components/ui/Button';
+import { campaignApi } from '../lib/api';
 import { MOCK_CAMPAIGNS, formatCurrency } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
@@ -48,29 +49,34 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [donateTarget, setDonateTarget] = useState(null);
+  const [featured, setFeatured] = useState(MOCK_CAMPAIGNS.filter((c) => c.isFeatured).slice(0, 3));
 
-  const featured = MOCK_CAMPAIGNS.filter((c) => c.isFeatured).slice(0, 3);
+  useEffect(() => {
+    campaignApi.getAll({ status: 'active', limit: 3 })
+      .then(res => { if (res.campaigns?.length) setFeatured(res.campaigns); })
+      .catch(() => {});
+  }, []);
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="gradient-hero pt-28 pb-16 sm:pt-36 sm:pb-24 relative overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute top-20 right-0 w-72 h-72 bg-brand-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-56 h-56 bg-forest-100 rounded-full blur-3xl opacity-30 pointer-events-none" />
+        {/* Subtle green glow blobs */}
+        <div className="absolute top-20 right-0 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-10 w-64 h-64 bg-brand-400/8 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center relative">
           {/* Left */}
           <div className="flex flex-col gap-6">
-            <span className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full bg-brand-100 text-brand-700 text-xs font-bold">
+            <span className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-sm bg-brand-500/20 text-[#00ED64] text-xs font-bold border border-brand-400/30">
               <CheckCircle2 size={12} /> {t('hero.badge')}
             </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-[#1a1a2e] leading-[1.1] tracking-tight text-balance">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tight text-balance">
               {t('hero.headline')}
             </h1>
-            <p className="text-base text-gray-600 leading-relaxed max-w-lg">
+            <p className="text-base text-[#889397] leading-relaxed max-w-lg">
               {t('hero.sub')}
             </p>
             <div className="flex flex-wrap gap-3">
@@ -82,27 +88,26 @@ export default function Landing() {
               >
                 {t('hero.cta_primary')}
               </Button>
-              <Button
-                variant="secondary"
-                size="xl"
+              <button
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-md border border-white/20 text-white text-sm font-semibold hover:bg-white/8 transition-all duration-150"
                 onClick={() => navigate('/campaigns')}
               >
                 {t('hero.cta_secondary')}
-              </Button>
+              </button>
             </div>
 
             {/* Trust marks */}
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <ShieldCheck size={14} className="text-forest-500" />
+            <div className="flex items-center gap-5 pt-2">
+              <div className="flex items-center gap-1.5 text-xs text-[#889397]">
+                <ShieldCheck size={14} className="text-[#00ED64]" />
                 <span>Verified campaigns</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <BarChart2 size={14} className="text-brand-500" />
+              <div className="flex items-center gap-1.5 text-xs text-[#889397]">
+                <BarChart2 size={14} className="text-[#00ED64]" />
                 <span>Full transparency</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Leaf size={14} className="text-forest-500" />
+              <div className="flex items-center gap-1.5 text-xs text-[#889397]">
+                <Leaf size={14} className="text-[#00ED64]" />
                 <span>SDG aligned</span>
               </div>
             </div>
@@ -113,25 +118,26 @@ export default function Landing() {
             {featured.slice(0, 2).map((c, i) => (
               <div
                 key={c._id}
-                className={`card overflow-hidden ${i === 1 ? 'mt-8' : ''}`}
+                className={`bg-[#112733] border border-white/10 rounded-lg overflow-hidden shadow-atlas ${i === 1 ? 'mt-8' : ''}`}
                 style={{ transform: i === 0 ? 'rotate(-1deg)' : 'rotate(1deg)' }}
               >
-                <img src={c.coverImage} alt={c.title} className="w-full h-32 object-cover" />
+                <img src={c.coverImage} alt={c.title} className="w-full h-32 object-cover opacity-90" />
                 <div className="p-3">
-                  <p className="text-xs font-semibold text-[#1a1a2e] line-clamp-2">{c.title}</p>
-                  <div className="mt-2 h-1.5 rounded-full bg-brand-100">
-                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${c.progressPercent}%` }} />
+                  <p className="text-xs font-semibold text-white line-clamp-2">{c.title}</p>
+                  <div className="mt-2 h-1 rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-[#00ED64]" style={{ width: `${c.progressPercent}%` }} />
                   </div>
-                  <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                    <span className="font-semibold text-brand-600">{c.progressPercent}%</span>
+                  <div className="flex justify-between text-[10px] text-[#889397] mt-1">
+                    <span className="font-semibold text-[#00ED64]">{c.progressPercent}%</span>
                     <span>{c.donorCount} donors</span>
                   </div>
                 </div>
               </div>
             ))}
             {/* Floating badge */}
-            <div className="absolute -bottom-4 left-4 bg-forest-500 text-white rounded-2xl px-4 py-2.5 shadow-lg">
-              <p className="text-xs font-bold">🎉 RWF 980K raised today</p>
+            <div className="absolute -bottom-4 left-4 bg-brand-500 text-white rounded-md px-4 py-2.5 shadow-warm flex items-center gap-2 border border-brand-400/40">
+              <TrendingUp size={13} className="text-[#00ED64]" />
+              <p className="text-xs font-bold">RWF 980K raised today</p>
             </div>
           </div>
         </div>
@@ -248,10 +254,10 @@ export default function Landing() {
       {/* ── CTA banner ────────────────────────────────────── */}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d3561] rounded-4xl p-10 sm:p-14 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#001E2B] to-[#023430] rounded-lg p-10 sm:p-14 text-white relative overflow-hidden border border-white/[0.07]">
             <div className="absolute inset-0 bg-noise opacity-10 pointer-events-none" />
             <div className="relative z-10">
-              <span className="inline-block bg-brand-500/20 text-brand-300 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
+              <span className="inline-block bg-brand-500/20 text-[#00ED64] text-xs font-bold px-3 py-1.5 rounded-sm border border-brand-400/30 mb-4">
                 Aligned with Rwanda Vision 2050
               </span>
               <h2 className="text-3xl sm:text-4xl font-black mb-4 text-balance">

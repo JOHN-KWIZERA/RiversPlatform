@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Upload, Target, MapPin, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Upload, Target, MapPin, Calendar, AlertTriangle, ImagePlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input, { Select, Textarea } from '../../components/ui/Input';
-import { campaignApi } from '../../lib/api';
+import { campaignApi, uploadApi } from '../../lib/api';
 
 const CATEGORIES = ['education', 'healthcare', 'food_security', 'emergency', 'housing', 'youth_employment'];
 
@@ -14,6 +14,8 @@ export default function CreateCampaign() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [step, setStep] = useState(1);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
@@ -24,7 +26,7 @@ export default function CreateCampaign() {
     setLoading(true);
     try {
       await campaignApi.create({ ...data, status: 'pending_review' });
-      toast.success('Campaign submitted for review! 🎉');
+      toast.success('Campaign submitted for review.');
       navigate('/dashboard/campaigns');
     } catch (err) {
       toast.error(err?.message || 'Failed to create campaign.');
@@ -134,13 +136,55 @@ export default function CreateCampaign() {
                 {...register('endDate')}
               />
             </div>
-            <Input
-              label="Cover Image URL"
-              leftElement={<Upload size={15} />}
-              placeholder="https://… (or leave blank)"
-              hint="Paste a direct image URL. File upload will be available soon."
-              {...register('coverImage')}
-            />
+            {/* Cover image upload */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-[#001E2B]">Cover Image</label>
+              {previewUrl ? (
+                <div className="relative rounded-md overflow-hidden h-40 bg-brand-50">
+                  <img src={previewUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setPreviewUrl(''); register('coverImage').onChange({ target: { value: '' } }); }}
+                    className="absolute top-2 right-2 p-1 rounded-md bg-black/50 text-white hover:bg-black/70"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-md cursor-pointer hover:border-brand-300 hover:bg-brand-50/50 transition-all">
+                  {uploading ? (
+                    <span className="text-sm text-gray-400">Uploading…</span>
+                  ) : (
+                    <>
+                      <ImagePlus size={24} className="text-gray-300 mb-2" />
+                      <span className="text-sm text-gray-400">Click to upload cover image</span>
+                      <span className="text-xs text-gray-300 mt-0.5">JPG, PNG, WebP — max 10MB</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploading(true);
+                      try {
+                        const { url } = await uploadApi.image(file, 'campaigns');
+                        setPreviewUrl(url);
+                        register('coverImage').onChange({ target: { value: url } });
+                      } catch {
+                        toast.error('Upload failed. Check your Supabase config.');
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}
+                  />
+                </label>
+              )}
+              <input type="hidden" {...register('coverImage')} />
+            </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="urgent" {...register('isUrgent')} className="w-4 h-4 rounded accent-brand-500" />
               <label htmlFor="urgent" className="text-sm text-gray-600 cursor-pointer">
@@ -165,8 +209,9 @@ export default function CreateCampaign() {
                 <div><p className="text-xs text-gray-500">Target</p><p className="font-medium">RWF {Number(watch('targetAmount') || 0).toLocaleString()}</p></div>
               </div>
             </div>
-            <p className="text-sm text-gray-500 bg-amber-50 border border-amber-200 rounded-xl p-3">
-              ⚠️ By submitting, you confirm that all information is accurate and verified. Your campaign will be reviewed by a RIVERS administrator within 24–48 hours.
+            <p className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+              <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              By submitting, you confirm that all information is accurate and verified. Your campaign will be reviewed by a RIVERS administrator within 24–48 hours.
             </p>
             <div className="flex gap-3">
               <Button type="button" variant="secondary" onClick={() => setStep(2)} className="flex-1">← Back</Button>

@@ -25,13 +25,13 @@ export function CircularProgress({ value = 0, size = 64, strokeWidth = 5, classN
 
   return (
     <svg width={size} height={size} className={cn('-rotate-90', className)}>
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f2d9bc" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#d1fae5" strokeWidth={strokeWidth} />
       <circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="#c45c26"
+        stroke="#00684A"
         strokeWidth={strokeWidth}
         strokeDasharray={circumference}
         strokeDashoffset={offset}

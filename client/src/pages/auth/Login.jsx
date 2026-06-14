@@ -2,11 +2,18 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Shield, Users, Heart, Handshake } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { useAuth } from '../../context/AuthContext';
+
+const DEMO_ROLES = [
+  { role: 'admin',            label: 'Admin',     icon: Shield,    color: 'bg-[#001E2B] text-white hover:bg-[#023430]' },
+  { role: 'community_leader', label: 'Leader',    icon: Users,     color: 'bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100' },
+  { role: 'sponsor',          label: 'Sponsor',   icon: Heart,     color: 'bg-forest-50 text-forest-700 border border-forest-200 hover:bg-forest-100' },
+  { role: 'volunteer',        label: 'Volunteer', icon: Handshake, color: 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100' },
+];
 
 export default function Login() {
   const { t } = useTranslation();
@@ -43,35 +50,43 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-cream flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#1a1a2e] to-[#2d3561] p-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#f7f8fa] flex">
+      {/* Left panel — MongoDB dark */}
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#001E2B] to-[#023430] p-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-noise opacity-10" />
+        {/* Logo */}
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-md bg-brand-500 flex items-center justify-center">
               <span className="text-white text-sm font-black">R</span>
             </div>
             <span className="font-black text-white text-lg tracking-tight">RIVERS</span>
           </Link>
         </div>
+
+        {/* Quote */}
         <div className="relative z-10">
+          <div className="w-8 h-1 bg-[#00ED64] rounded-full mb-6" />
           <blockquote className="text-2xl font-black text-white leading-tight mb-4">
             "Transparency builds trust. Trust builds communities."
           </blockquote>
-          <p className="text-gray-400 text-sm">Empowering Rwanda through accountable community development.</p>
+          <p className="text-[#889397] text-sm">
+            Empowering Rwanda through accountable community development.
+          </p>
         </div>
+
+        {/* Stats */}
         <div className="relative z-10 flex flex-col gap-3">
           {[
-            { n: 1247, label: 'Families supported' },
-            { n: '85+', label: 'Verified campaigns' },
-            { n: 340, label: 'Youth employed' },
+            { n: '1,247', label: 'Families supported' },
+            { n: '85+',   label: 'Verified campaigns' },
+            { n: '340',   label: 'Youth employed' },
           ].map(({ n, label }) => (
             <div key={label} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                <span className="text-brand-300 text-sm font-bold">{n}</span>
+              <div className="w-10 h-10 rounded-md bg-white/10 border border-white/[0.07] flex items-center justify-center">
+                <span className="text-[#00ED64] text-xs font-bold">{n}</span>
               </div>
-              <span className="text-gray-400 text-sm">{label}</span>
+              <span className="text-[#889397] text-sm">{label}</span>
             </div>
           ))}
         </div>
@@ -82,13 +97,13 @@ export default function Login() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-md bg-brand-500 flex items-center justify-center">
               <span className="text-white text-sm font-black">R</span>
             </div>
-            <span className="font-black text-[#1a1a2e] text-lg tracking-tight">RIVERS</span>
+            <span className="font-black text-[#001E2B] text-lg tracking-tight">RIVERS</span>
           </Link>
 
-          <h1 className="text-3xl font-black text-[#1a1a2e] mb-1">{t('auth.login_title')}</h1>
+          <h1 className="text-3xl font-black text-[#001E2B] mb-1">{t('auth.login_title')}</h1>
           <p className="text-gray-500 mb-8">{t('auth.login_sub')}</p>
 
           {/* Google */}
@@ -151,20 +166,16 @@ export default function Login() {
           </p>
 
           {/* Demo preview */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
+          <div className="mt-6 pt-5 border-t border-gray-200">
             <p className="text-xs text-center text-gray-400 mb-3">— or preview without an account —</p>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { role: 'admin', label: '🛡️ Admin', color: 'bg-[#1a1a2e] text-white' },
-                { role: 'community_leader', label: '👥 Leader', color: 'bg-brand-50 text-brand-700 border border-brand-200' },
-                { role: 'sponsor', label: '💛 Sponsor', color: 'bg-forest-50 text-forest-700 border border-forest-200' },
-                { role: 'volunteer', label: '🤝 Volunteer', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
-              ].map(({ role, label, color }) => (
+              {DEMO_ROLES.map(({ role, label, icon: Icon, color }) => (
                 <button
                   key={role}
                   onClick={() => { enterDemo(role); navigate('/dashboard'); }}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold transition-all hover:opacity-80 ${color}`}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-all ${color}`}
                 >
+                  <Icon size={13} />
                   {label}
                 </button>
               ))}

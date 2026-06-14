@@ -16,15 +16,14 @@ export default function DashboardRouter() {
   );
 
   switch (user?.role) {
-    case 'admin': return <AdminDashboard />;
+    case 'admin':            return <AdminDashboard />;
     case 'community_leader': return <LeaderDashboard />;
-    case 'sponsor': return <SponsorDashboard />;
-    case 'volunteer': return <VolunteerDashboard />;
-    case 'beneficiary': return <BeneficiaryDashboard />;
+    case 'sponsor':          return <SponsorDashboard />;
+    case 'volunteer':        return <VolunteerDashboard />;
+    case 'beneficiary':      return <BeneficiaryDashboard />;
     default: return (
-      <div className="text-center py-16">
-        <p className="text-4xl mb-4">👋</p>
-        <h2 className="text-xl font-bold text-[#1a1a2e]">Welcome to RIVERS</h2>
+      <div className="card p-10 text-center max-w-md mx-auto mt-4">
+        <h2 className="text-xl font-bold text-[#001E2B]">Welcome to RIVERS</h2>
         <p className="text-gray-500 mt-2">Your dashboard is being set up…</p>
       </div>
     );

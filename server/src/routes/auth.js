@@ -29,9 +29,31 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
-// Get current user profile
-router.get('/me', authenticate, async (req, res) => {
-  res.json(req.user);
+// Get current user profile — auto-creates a record if the Firebase user has no DB entry yet
+router.get('/me', async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const decoded = await admin.auth().verifyIdToken(authHeader.split(' ')[1]);
+    let user = await User.findOne({ firebaseUid: decoded.uid });
+
+    if (!user) {
+      // User exists in Firebase but hasn't registered through the app yet — create a basic profile
+      user = await User.create({
+        firebaseUid: decoded.uid,
+        email: decoded.email || '',
+        fullName: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'User'),
+        role: 'sponsor', // default role — can be changed in Settings
+      });
+    }
+
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Update profile

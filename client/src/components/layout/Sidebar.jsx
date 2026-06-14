@@ -53,31 +53,31 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside className={cn(
-      'flex flex-col h-full bg-white border-r border-gray-100 transition-all duration-300',
+      'flex flex-col h-full bg-[#001E2B] border-r border-white/[0.07] transition-all duration-300',
       collapsed ? 'w-16' : 'w-60'
     )}>
       {/* Logo */}
-      <div className={cn('flex items-center px-4 h-16 border-b border-gray-100', collapsed ? 'justify-center' : 'justify-between')}>
+      <div className={cn('flex items-center px-4 h-16 border-b border-white/[0.07]', collapsed ? 'justify-center' : 'justify-between')}>
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-brand-500 flex items-center justify-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-brand-500 flex items-center justify-center shadow-warm">
               <span className="text-white text-xs font-black">R</span>
             </div>
-            <span className="font-black text-[#1a1a2e] tracking-tight">RIVERS</span>
+            <span className="font-black text-white tracking-tight">RIVERS</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-xl bg-brand-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-md bg-brand-500 flex items-center justify-center shadow-warm">
             <span className="text-white text-xs font-black">R</span>
           </div>
         )}
-        <button onClick={onToggle} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors hidden lg:flex">
+        <button onClick={onToggle} className="p-1 rounded-lg hover:bg-white/10 text-slate-500 transition-colors hidden lg:flex">
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-4 flex flex-col gap-0.5 overflow-y-auto">
+      <nav className="flex-1 px-2 py-4 flex flex-col gap-0.5 overflow-y-auto sidebar-scroll">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -93,7 +93,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </nav>
 
       {/* Bottom */}
-      <div className="p-2 border-t border-gray-100 flex flex-col gap-1">
+      <div className="p-2 border-t border-white/[0.07] flex flex-col gap-1">
         <NavLink
           to="/dashboard/settings"
           className={({ isActive }) => cn('sidebar-link', isActive && 'active', collapsed && 'justify-center px-0')}
@@ -105,18 +105,18 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         {/* User */}
         {!collapsed && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-50 mt-1">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 mt-1 border border-white/[0.07]">
             <Avatar name={user?.fullName} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-[#1a1a2e] truncate">{user?.fullName}</p>
-              <p className="text-xs text-gray-400 truncate capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-xs font-semibold text-white truncate">{user?.fullName}</p>
+              <p className="text-xs text-slate-400 truncate capitalize">{user?.role?.replace('_', ' ')}</p>
             </div>
           </div>
         )}
 
         <button
           onClick={handleLogout}
-          className={cn('sidebar-link text-red-500 hover:bg-red-50 hover:text-red-600 mt-0.5', collapsed && 'justify-center px-0')}
+          className={cn('sidebar-link text-red-400 hover:bg-red-500/10 hover:text-red-400 mt-0.5', collapsed && 'justify-center px-0')}
           title={collapsed ? t('dashboard.logout') : undefined}
         >
           <LogOut size={18} className="flex-shrink-0" />

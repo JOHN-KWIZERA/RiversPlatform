@@ -52,4 +52,14 @@ export const userApi = {
   verify: (id, isVerified) => api.patch(`/users/${id}/verify`, { isVerified }),
 };
 
+export const uploadApi = {
+  image: (file, folder = 'general') => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/upload/image?folder=${folder}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
 export default api;

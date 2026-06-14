@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock, User, Phone, Building2, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, Building2, MapPin, Users, Heart, Handshake, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input, { Select } from '../../components/ui/Input';
@@ -11,10 +11,10 @@ import { useAuth } from '../../context/AuthContext';
 const ROLES = ['community_leader', 'sponsor', 'volunteer', 'beneficiary'];
 
 const ROLE_ICONS = {
-  community_leader: '👥',
-  sponsor: '💛',
-  volunteer: '🤝',
-  beneficiary: '🏡',
+  community_leader: Users,
+  sponsor: Heart,
+  volunteer: Handshake,
+  beneficiary: Home,
 };
 
 export default function Signup() {
@@ -36,7 +36,7 @@ export default function Signup() {
     setLoading(true);
     try {
       await authRegister(data);
-      toast.success('Account created! Welcome to RIVERS 🎉');
+      toast.success('Account created! Welcome to RIVERS.');
       navigate('/dashboard');
     } catch (err) {
       toast.error(err?.message || 'Registration failed. Please try again.');
@@ -76,12 +76,15 @@ export default function Signup() {
             Join community leaders, sponsors, and volunteers across Kigali who are building transparent, accountable support systems for vulnerable families.
           </p>
           <div className="mt-6 grid grid-cols-2 gap-3">
-            {ROLES.map((r) => (
-              <div key={r} className={`p-3 rounded-xl border transition-all ${selectedRole === r ? 'bg-white/20 border-white/40' : 'bg-white/5 border-white/10'}`}>
-                <span className="text-lg">{ROLE_ICONS[r]}</span>
-                <p className="text-white text-xs font-semibold mt-1">{t(`auth.roles.${r}`)}</p>
-              </div>
-            ))}
+            {ROLES.map((r) => {
+              const Icon = ROLE_ICONS[r];
+              return (
+                <div key={r} className={`p-3 rounded-xl border transition-all ${selectedRole === r ? 'bg-white/20 border-white/40' : 'bg-white/5 border-white/10'}`}>
+                  <Icon size={18} className="text-white/80" />
+                  <p className="text-white text-xs font-semibold mt-1.5">{t(`auth.roles.${r}`)}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="relative z-10 text-forest-300 text-xs">
@@ -116,7 +119,7 @@ export default function Signup() {
                   }`}
                 >
                   <input type="radio" value={r} {...register('role')} className="sr-only" />
-                  <span className="text-base">{ROLE_ICONS[r]}</span>
+                  {(() => { const Icon = ROLE_ICONS[r]; return <Icon size={15} className="flex-shrink-0" />; })()}
                   <span className="text-xs font-semibold">{t(`auth.roles.${r}`)}</span>
                 </label>
               ))}

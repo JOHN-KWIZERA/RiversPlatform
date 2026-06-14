@@ -38,7 +38,7 @@ export default function DonationModal({ open, onClose, campaign }) {
     setLoading(true);
     try {
       await donationApi.create({ campaignId: campaign._id, ...data, amount: Number(data.amount) });
-      toast.success('Thank you for your donation! 🎉');
+      toast.success('Thank you for your donation!');
       onClose();
     } catch (err) {
       toast.error(err?.message || 'Donation failed. Please try again.');
