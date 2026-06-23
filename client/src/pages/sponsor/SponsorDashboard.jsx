@@ -1,34 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Heart, Star, Users, TrendingUp, ArrowRight, CheckCircle2, Globe } from 'lucide-react';
+import { Heart, Star, Users, TrendingUp, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/analytics/StatsCard';
 import Button from '../../components/ui/Button';
-import Progress from '../../components/ui/Progress';
 import Spinner from '../../components/ui/Spinner';
-import { campaignApi, analyticsApi, donationApi } from '../../lib/api';
+import { analyticsApi, donationApi } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { formatCurrency, progressPercent, timeAgo } from '../../lib/utils';
+import { formatCurrency, timeAgo } from '../../lib/utils';
 
 export default function SponsorDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState(null);
-  const [suggested, setSuggested] = useState([]);
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       analyticsApi.sponsor(),
-      campaignApi.getAll({ status: 'active', limit: 4 }),
       donationApi.getMy(),
     ])
-      .then(([analyticsData, campaignsData, donationsData]) => {
+      .then(([analyticsData, donationsData]) => {
         setAnalytics(analyticsData);
-        setSuggested(campaignsData.campaigns || []);
-        setDonations(Array.isArray(donationsData) ? donationsData.slice(0, 3) : []);
+        setDonations(Array.isArray(donationsData) ? donationsData.slice(0, 8) : []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -78,63 +74,49 @@ export default function SponsorDashboard() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-4">
-            {/* Recent donations */}
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-[#001E2B]">{t('dashboard.recent_donations')}</h3>
-                <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />} onClick={() => navigate('/dashboard/donations')}>View all</Button>
-              </div>
-              {donations.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">No donations yet.</p>
-              ) : (
-                <div className="flex flex-col divide-y divide-gray-100">
-                  {donations.map((d) => (
-                    <div key={d._id} className="flex items-center gap-3 py-3">
-                      <div className="w-9 h-9 rounded-md bg-brand-50 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 size={16} className="text-brand-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#001E2B] truncate">{d.campaignId?.title || 'Campaign'}</p>
-                        <p className="text-xs text-gray-400">{timeAgo(d.donatedAt || d.createdAt)}</p>
-                      </div>
-                      <span className="text-sm font-bold text-brand-600">{formatCurrency(d.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Recent donations table */}
+          <div className="card overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-[#001E2B]">{t('dashboard.recent_donations')}</h3>
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />} onClick={() => navigate('/dashboard/donations')}>
+                View all
+              </Button>
             </div>
-
-            {/* Suggested campaigns */}
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-[#001E2B]">Suggested for You</h3>
-                <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />} onClick={() => navigate('/dashboard/browse')}>Explore</Button>
+            {donations.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-gray-400 mb-3">No donations yet.</p>
+                <Button size="sm" onClick={() => navigate('/dashboard/browse')}>Browse campaigns</Button>
               </div>
-              <div className="flex flex-col gap-3">
-                {suggested.slice(0, 3).map((c) => {
-                  const pct = progressPercent(c.raisedAmount, c.targetAmount);
-                  return (
-                    <div key={c._id} className="flex gap-3 cursor-pointer hover:bg-gray-50 rounded-md p-2 -m-2 transition-colors" onClick={() => navigate(`/campaigns/${c._id}`)}>
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-brand-50">
-                        {c.coverImage
-                          ? <img src={c.coverImage} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center"><Globe size={18} className="text-brand-200" /></div>
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#001E2B] truncate">{c.title}</p>
-                        <Progress value={pct} size="sm" className="mt-1.5" />
-                        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                          <span className="font-semibold text-brand-600">{pct}% funded</span>
-                          <span>{c.donorCount} donors</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/60">
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Campaign</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">When</th>
+                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {donations.map((d) => (
+                      <tr key={d._id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <p className="font-medium text-[#001E2B] truncate max-w-xs">
+                            {d.campaignId?.title || 'Campaign'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3.5 hidden sm:table-cell">
+                          <span className="text-xs text-gray-400">{timeAgo(d.donatedAt || d.createdAt)}</span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className="text-sm font-bold text-brand-600">{formatCurrency(d.amount)}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
           </div>
         </>
       )}

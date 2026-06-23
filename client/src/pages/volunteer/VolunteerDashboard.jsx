@@ -1,89 +1,136 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Handshake, MapPin, Clock, Users, Star, Award } from 'lucide-react';
+import { Handshake, Award, CheckCircle2, Clock, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import StatsCard from '../../components/analytics/StatsCard';
 import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
-
-const OPPORTUNITIES = [
-  { id: 1, title: 'Community Outreach – Bumbogo',   category: 'Field Work', location: 'Bumbogo, Gasabo',  hours: '4 hrs/week', spots: 3, skills: ['Communication', 'Kinyarwanda'] },
-  { id: 2, title: 'Youth Mentorship – Digital Skills', category: 'Training',  location: 'Kacyiru, Gasabo', hours: '2 hrs/week', spots: 5, skills: ['Digital Skills', 'Teaching'] },
-  { id: 3, title: 'Impact Photography & Reporting', category: 'Content',    location: 'Kimironko',        hours: '3 hrs/week', spots: 2, skills: ['Photography', 'Writing'] },
-  { id: 4, title: 'Data Entry & Campaign Support',  category: 'Remote',     location: 'Remote',           hours: '5 hrs/week', spots: 8, skills: ['Computer Literacy', 'Accuracy'] },
-];
-
-const CATEGORY_COLORS = {
-  'Field Work': 'bg-brand-50 text-brand-700',
-  'Training':   'bg-forest-50 text-forest-700',
-  'Content':    'bg-blue-50 text-blue-700',
-  'Remote':     'bg-purple-50 text-purple-700',
-};
+import { opportunityApi } from '../../lib/api';
+import { formatDate } from '../../lib/utils';
 
 export default function VolunteerDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [myApps, setMyApps] = useState([]);
+  const [openCount, setOpenCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      opportunityApi.getAll({ status: 'open', limit: 1 }),
+      opportunityApi.getMyApplications().catch(() => []),
+    ]).then(([oppData, apps]) => {
+      setOpenCount(oppData.total ?? 0);
+      setMyApps(Array.isArray(apps) ? apps : []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const accepted = myApps.filter(a => a.status === 'accepted');
+  const pending  = myApps.filter(a => a.status === 'pending');
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="page-header">{t('dashboard.welcome')}, {user?.fullName?.split(' ')[0]}</h1>
-        <p className="text-sm text-gray-500 mt-1">Your volunteer contributions make Rwanda stronger.</p>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard label="Hours Volunteered" value="24"     icon={Clock}      trend={20} iconColor="text-brand-500"  iconBg="bg-brand-50" />
-        <StatsCard label="Activities Joined" value="6"      icon={Handshake}             iconColor="text-forest-500" iconBg="bg-forest-50" />
-        <StatsCard label="Families Reached"  value="89"     icon={Users}                 iconColor="text-brand-500"  iconBg="bg-brand-50" />
-        <StatsCard label="Impact Score"      value="82/100" icon={Star}       trend={12} iconColor="text-forest-500" iconBg="bg-forest-50" />
-      </div>
-
-      {/* Certificate progress */}
-      <div className="card p-6 bg-gradient-to-br from-[#001E2B] to-[#023430] text-white border-0 flex items-center gap-5">
-        <div className="w-14 h-14 rounded-md bg-brand-500/20 border border-brand-400/30 flex items-center justify-center flex-shrink-0">
-          <Award size={28} className="text-[#00ED64]" />
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="page-header">{t('dashboard.welcome')}, {user?.fullName?.split(' ')[0]}</h1>
+          <p className="text-sm text-gray-500 mt-1">Your volunteer contributions make Rwanda stronger.</p>
         </div>
-        <div className="flex-1">
-          <h3 className="font-bold">Community Impact Certificate</h3>
-          <p className="text-[#889397] text-sm mt-0.5">Complete 40 volunteer hours to earn your certificate of recognition.</p>
-          <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full rounded-full bg-brand-400 transition-all duration-700" style={{ width: '60%' }} />
-          </div>
-          <p className="text-xs text-[#889397] mt-1">24 / 40 hours completed</p>
-        </div>
-        <Button variant="secondary" size="sm" className="flex-shrink-0 !bg-white/10 !text-white !border-white/20 hover:!bg-white/20">
-          View Progress
+        <Button rightIcon={<ArrowRight size={14} />} onClick={() => navigate('/dashboard/opportunities')}>
+          Browse Opportunities
         </Button>
       </div>
 
-      {/* Opportunities */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-[#001E2B]">Open Opportunities</h3>
-          <span className="text-xs text-gray-400">{OPPORTUNITIES.length} available</span>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          {OPPORTUNITIES.map((opp) => (
-            <div key={opp.id} className="card-hover p-5 flex flex-col gap-3">
-              <div className="flex items-start justify-between">
-                <span className={`badge ${CATEGORY_COLORS[opp.category]}`}>{opp.category}</span>
-                <span className="text-xs text-gray-400">{opp.spots} spots left</span>
-              </div>
-              <div>
-                <h4 className="font-semibold text-[#001E2B]">{opp.title}</h4>
-                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                  <span className="flex items-center gap-1"><MapPin size={11} />{opp.location}</span>
-                  <span className="flex items-center gap-1"><Clock size={11} />{opp.hours}</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {opp.skills.map((s) => (
-                  <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-sm text-xs">{s}</span>
-                ))}
-              </div>
-              <Button variant="secondary" size="sm" className="mt-auto">Apply Now</Button>
+      {loading ? (
+        <div className="flex justify-center py-20"><Spinner size={28} className="text-brand-500" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard label="Open Opportunities" value={openCount}        icon={Handshake}    iconColor="text-brand-500"  iconBg="bg-brand-50" />
+            <StatsCard label="Applications Sent"  value={myApps.length}   icon={CheckCircle2} iconColor="text-forest-500" iconBg="bg-forest-50" />
+            <StatsCard label="Accepted"           value={accepted.length} icon={Award}        iconColor="text-brand-500"  iconBg="bg-brand-50" />
+            <StatsCard label="Pending Response"   value={pending.length}  icon={Clock}        iconColor="text-amber-600"  iconBg="bg-amber-50" />
+          </div>
+
+          {/* Certificate progress */}
+          <div className="card p-6 bg-gradient-to-br from-[#001E2B] to-[#023430] text-white border-0 flex items-center gap-5">
+            <div className="w-14 h-14 rounded-md bg-brand-500/20 border border-brand-400/30 flex items-center justify-center flex-shrink-0">
+              <Award size={28} className="text-[#00ED64]" />
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="flex-1">
+              <h3 className="font-bold">Community Impact Certificate</h3>
+              <p className="text-[#889397] text-sm mt-0.5">Complete 40 volunteer hours to earn your certificate of recognition.</p>
+              <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full rounded-full bg-brand-400 transition-all duration-700"
+                  style={{ width: `${Math.min(100, (accepted.length / 5) * 100)}%` }} />
+              </div>
+              <p className="text-xs text-[#889397] mt-1">{accepted.length} of 5 accepted assignments</p>
+            </div>
+          </div>
+
+          {/* My applications table */}
+          <div className="card overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-[#001E2B]">My Applications</h3>
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}
+                onClick={() => navigate('/dashboard/opportunities')}>
+                Browse more
+              </Button>
+            </div>
+            {myApps.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-gray-400">No applications yet.</p>
+                <Button size="sm" className="mt-3" onClick={() => navigate('/dashboard/opportunities')}>
+                  Find an opportunity
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/60">
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Opportunity</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden sm:table-cell">Location</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide hidden md:table-cell">Start date</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {myApps.map((app) => {
+                      const opp = app.opportunityId;
+                      if (!opp) return null;
+                      return (
+                        <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-5 py-3.5">
+                            <p className="font-medium text-[#001E2B] truncate max-w-xs">{opp.title || '—'}</p>
+                          </td>
+                          <td className="px-4 py-3.5 hidden sm:table-cell">
+                            <span className="text-xs text-gray-500">{opp.community || '—'}</span>
+                          </td>
+                          <td className="px-4 py-3.5 hidden md:table-cell">
+                            <span className="text-xs text-gray-500">
+                              {opp.startDate ? formatDate(opp.startDate) : '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className={`badge text-[10px] ${
+                              app.status === 'accepted'  ? 'bg-forest-50 text-forest-700' :
+                              app.status === 'rejected'  ? 'bg-red-50 text-red-500' :
+                              app.status === 'withdrawn' ? 'bg-gray-100 text-gray-500' :
+                              'bg-amber-50 text-amber-700'
+                            }`}>{app.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

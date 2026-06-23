@@ -142,6 +142,19 @@
     background: linear-gradient(135deg, #f0f9f4 0%, #d8f0e5 100%);
   }
 
+  /* ── Scrollbar hide ──────────────────────────────────── */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Marquee ─────────────────────────────────────────── */
+  @keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee 35s linear infinite;
+  }
+
   /* ── Progress ────────────────────────────────────────── */
   .progress-bar {
     @apply h-1.5 rounded-full bg-brand-100 overflow-hidden;
@@ -159,3 +172,60 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
   }
 }
+
+/* ── TipTap editor & rich text rendering ──────────────── */
+.tiptap {
+  /* min-height matches the fixed wrapper so clicking anywhere in the empty box focuses the editor */
+  min-height: 220px;
+  @apply px-3 py-2.5 text-sm text-gray-700 leading-relaxed outline-none;
+}
+
+/* Placeholder (empty first paragraph) */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Shared styles for .tiptap (editing) and .prose-content (rendering) */
+.tiptap p,
+.prose-content p { @apply mb-2; }
+
+.tiptap p:last-child,
+.prose-content p:last-child { @apply mb-0; }
+
+.tiptap h1, .prose-content h1 { @apply text-xl font-bold text-[#001E2B] mb-2 mt-3; }
+.tiptap h2, .prose-content h2 { @apply text-lg font-bold text-[#001E2B] mb-2 mt-3; }
+.tiptap h3, .prose-content h3 { @apply text-base font-semibold text-[#001E2B] mb-1.5 mt-2; }
+
+.tiptap strong, .prose-content strong { @apply font-semibold; }
+.tiptap em, .prose-content em { @apply italic; }
+.tiptap s, .prose-content s { @apply line-through; }
+
+.tiptap code:not(pre > code),
+.prose-content code:not(pre > code) {
+  @apply bg-gray-100 rounded px-1 py-0.5 text-[13px] font-mono text-brand-700;
+}
+
+.tiptap pre,
+.prose-content pre {
+  @apply bg-gray-900 text-gray-100 rounded-md p-3.5 overflow-x-auto mb-2 text-[13px] font-mono;
+}
+
+.tiptap pre code,
+.prose-content pre code { @apply bg-transparent p-0 text-gray-100; }
+
+.tiptap ul, .prose-content ul { @apply list-disc pl-5 mb-2; }
+.tiptap ol, .prose-content ol { @apply list-decimal pl-5 mb-2; }
+.tiptap li, .prose-content li { @apply mb-0.5; }
+
+.tiptap blockquote,
+.prose-content blockquote {
+  @apply border-l-4 border-brand-300 pl-4 italic text-gray-500 mb-2;
+}
+
+.tiptap a, .prose-content a { @apply text-brand-600 underline hover:text-brand-800; }
+
+.tiptap img, .prose-content img { @apply rounded-md max-w-full mb-1; }

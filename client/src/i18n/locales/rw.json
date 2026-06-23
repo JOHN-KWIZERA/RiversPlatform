@@ -85,7 +85,9 @@
     "youth_employed": "Urubyiruko Rufite Akazi",
     "pending_review": "Birindirwa Kugenzurwa",
     "recent_donations": "Impano za Vuba",
-    "recent_campaigns": "Ibikorwa bya Vuba"
+    "recent_campaigns": "Ibikorwa bya Vuba",
+    "audit": "Inzira y'Ibikorwa",
+    "opportunities": "Amahirwe"
   },
   "status": {
     "draft": "Igikorwa Gishya",

@@ -9,6 +9,22 @@ const supabase = createClient(
 
 const BUCKET = 'rivers-uploads';
 
+async function initBucket() {
+  const { data: buckets, error } = await supabase.storage.listBuckets();
+  if (error) {
+    console.error('Supabase: failed to list buckets:', error.message);
+    return;
+  }
+  if (!buckets.some((b) => b.name === BUCKET)) {
+    const { error: createErr } = await supabase.storage.createBucket(BUCKET, { public: true });
+    if (createErr) {
+      console.error(`Supabase: failed to create bucket "${BUCKET}":`, createErr.message);
+    } else {
+      console.log(`Supabase: bucket "${BUCKET}" created.`);
+    }
+  }
+}
+
 // In-memory multer storage — files go straight to Supabase, not disk
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -39,4 +55,4 @@ async function deleteFile(publicUrl) {
   await supabase.storage.from(BUCKET).remove([path]);
 }
 
-module.exports = { supabase, upload, uploadFile, deleteFile };
+module.exports = { supabase, upload, uploadFile, deleteFile, initBucket };

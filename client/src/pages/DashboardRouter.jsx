@@ -7,7 +7,7 @@ import BeneficiaryDashboard from './beneficiary/BeneficiaryDashboard';
 import Spinner from '../components/ui/Spinner';
 
 export default function DashboardRouter() {
-  const { user, loading } = useAuth();
+  const { user, effectiveRole, loading } = useAuth();
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -15,7 +15,7 @@ export default function DashboardRouter() {
     </div>
   );
 
-  switch (user?.role) {
+  switch (effectiveRole ?? user?.role) {
     case 'admin':            return <AdminDashboard />;
     case 'community_leader': return <LeaderDashboard />;
     case 'sponsor':          return <SponsorDashboard />;

@@ -1,6 +1,6 @@
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
 
 const COLORS = ['#00684A', '#2d6a4f', '#00A35C', '#4dab84', '#023430', '#1d4d32'];
@@ -45,6 +45,45 @@ export function CampaignBarChart({ data }) {
         <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
         <Tooltip contentStyle={tooltipStyle} />
         <Bar dataKey="count" fill="#00684A" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function UserGrowthLineChart({ data }) {
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const formatted = data.map(d => ({ month: MONTH_NAMES[(d._id?.month ?? 1) - 1], users: d.count }));
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+        <XAxis dataKey="month" tick={axisStyle} axisLine={false} tickLine={false} />
+        <YAxis tick={axisStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, 'New users']} />
+        <Line type="monotone" dataKey="users" stroke="#00A35C" strokeWidth={2} dot={{ r: 3, fill: '#00A35C' }} activeDot={{ r: 5 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function StatusDistributionChart({ data }) {
+  const STATUS_COLORS = {
+    active: '#00684A', completed: '#00A35C', pending_review: '#d97706',
+    draft: '#9ca3af', rejected: '#ef4444', approved: '#2d6a4f', paused: '#6b7280',
+  };
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }} layout="vertical">
+        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+        <XAxis type="number" tick={axisStyle} axisLine={false} tickLine={false} allowDecimals={false} />
+        <YAxis dataKey="_id" type="category" tick={{ ...axisStyle, fontSize: 10 }} axisLine={false} tickLine={false} width={80}
+          tickFormatter={(v) => v?.replace('_', ' ')} />
+        <Tooltip contentStyle={tooltipStyle} formatter={(v) => [v, 'Campaigns']} />
+        <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+          {data.map((entry, i) => (
+            <Cell key={i} fill={STATUS_COLORS[entry._id] || '#9ca3af'} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

@@ -130,7 +130,10 @@ export default function CampaignDetail() {
               {/* Description */}
               <div className="prose prose-sm max-w-none">
                 <h3 className="text-base font-bold text-[#001E2B] mb-2">About this campaign</h3>
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{campaign.description}</p>
+                <div
+                  className="prose-content text-gray-600"
+                  dangerouslySetInnerHTML={{ __html: campaign.description }}
+                />
               </div>
 
               {/* Stats strip */}

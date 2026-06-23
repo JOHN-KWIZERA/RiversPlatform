@@ -72,7 +72,7 @@ export default function MyCampaigns() {
                     <Button variant="ghost" size="sm" leftIcon={<Eye size={13} />} className="flex-1" onClick={() => navigate(`/campaigns/${c._id}`)}>
                       View
                     </Button>
-                    <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} className="flex-1">
+                    <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} className="flex-1" onClick={() => navigate(`/dashboard/campaigns/${c._id}/edit`)}>
                       Edit
                     </Button>
                   </div>

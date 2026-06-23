@@ -1,5 +1,9 @@
 const Campaign = require('../models/Campaign');
 const Donation = require('../models/Donation');
+const User = require('../models/User');
+const { createNotification } = require('./notificationController');
+const sms = require('../services/smsService');
+const { audit } = require('../services/auditService');
 
 exports.getCampaigns = async (req, res, next) => {
   try {
@@ -44,6 +48,7 @@ exports.getCampaignById = async (req, res, next) => {
 exports.createCampaign = async (req, res, next) => {
   try {
     const campaign = await Campaign.create({ ...req.body, leaderId: req.user._id });
+    audit({ actorId: req.user._id, actorName: req.user.fullName, action: 'campaign_created', targetType: 'Campaign', targetId: campaign._id, targetLabel: campaign.title, req });
     res.status(201).json(campaign);
   } catch (err) {
     next(err);
@@ -59,8 +64,18 @@ exports.updateCampaign = async (req, res, next) => {
     const isAdmin = req.user.role === 'admin';
     if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Forbidden' });
 
-    Object.assign(campaign, req.body);
+    if (isAdmin) {
+      Object.assign(campaign, req.body);
+    } else {
+      // Leaders may only update content fields; any edit triggers re-review
+      const LEADER_FIELDS = ['title', 'description', 'category', 'community', 'sector', 'district',
+        'targetAmount', 'beneficiaryCount', 'startDate', 'endDate', 'coverImage', 'isUrgent'];
+      LEADER_FIELDS.forEach((k) => { if (req.body[k] !== undefined) campaign[k] = req.body[k]; });
+      campaign.status = 'pending_review';
+    }
+
     await campaign.save();
+    audit({ actorId: req.user._id, actorName: req.user.fullName, action: 'campaign_updated', targetType: 'Campaign', targetId: campaign._id, targetLabel: campaign.title, req });
     res.json(campaign);
   } catch (err) {
     next(err);
@@ -81,6 +96,28 @@ exports.approveCampaign = async (req, res, next) => {
       { new: true }
     );
     if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
+
+    const isApproved = status === 'active' || status === 'approved';
+    await createNotification({
+      userId: campaign.leaderId,
+      type: isApproved ? 'campaign_approved' : 'campaign_rejected',
+      title: isApproved ? 'Campaign Approved!' : 'Campaign Needs Revision',
+      body: isApproved
+        ? `Your campaign "${campaign.title}" has been approved and is now live.`
+        : `Your campaign "${campaign.title}" was not approved. ${adminNote ? `Admin note: ${adminNote}` : ''}`,
+      link: `/campaigns/${campaign._id}`,
+    });
+
+    audit({ actorId: req.user._id, actorName: req.user.fullName, action: isApproved ? 'campaign_approved' : 'campaign_rejected', targetType: 'Campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { adminNote }, req });
+
+    // SMS
+    const leader = await User.findById(campaign.leaderId).select('phone');
+    if (isApproved) {
+      sms.notifyCampaignApproved({ leaderPhone: leader?.phone, campaignTitle: campaign.title });
+    } else {
+      sms.notifyCampaignRejected({ leaderPhone: leader?.phone, campaignTitle: campaign.title, adminNote });
+    }
+
     res.json(campaign);
   } catch (err) {
     next(err);

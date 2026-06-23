@@ -1,14 +1,58 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Upload, Target, MapPin, Calendar, AlertTriangle, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, Target, MapPin, Calendar, AlertTriangle, ImagePlus, X, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
-import Input, { Select, Textarea } from '../../components/ui/Input';
+import Input, { Select } from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
+import RichTextEditor from '../../components/ui/RichTextEditor';
 import { campaignApi, uploadApi } from '../../lib/api';
 
+const stripHtml = (html) => html?.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim() ?? '';
+
 const CATEGORIES = ['education', 'healthcare', 'food_security', 'emergency', 'housing', 'youth_employment'];
+
+function CampaignPreviewModal({ open, onClose, data, t }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Campaign Preview" size="md">
+      <div className="flex flex-col gap-4">
+        {data.coverImage && (
+          <img src={data.coverImage} alt="Cover" className="w-full h-44 object-cover rounded-xl" />
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {data.category && (
+            <span className="badge bg-brand-50 text-brand-700">{t(`categories.${data.category}`)}</span>
+          )}
+          {data.isUrgent && (
+            <span className="badge bg-red-50 text-red-600">Urgent</span>
+          )}
+        </div>
+        <h2 className="text-xl font-bold text-[#001E2B]">{data.title || <span className="text-gray-300 italic">No title yet</span>}</h2>
+        {data.community && (
+          <p className="text-sm text-gray-500 flex items-center gap-1.5">
+            <MapPin size={13} className="text-brand-400" /> {data.community}
+          </p>
+        )}
+        {data.targetAmount && (
+          <p className="text-sm font-semibold text-brand-600">
+            Goal: RWF {Number(data.targetAmount).toLocaleString()}
+            {data.startDate && <> · Starts {data.startDate}</>}
+          </p>
+        )}
+        <div className="border-t pt-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-brand-500 mb-2">Description</p>
+          {data.description && stripHtml(data.description).length > 0 ? (
+            <div className="prose-content text-gray-700" dangerouslySetInnerHTML={{ __html: data.description }} />
+          ) : (
+            <p className="text-sm text-gray-300 italic">No description added yet.</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 export default function CreateCampaign() {
   const { t } = useTranslation();
@@ -17,10 +61,13 @@ export default function CreateCampaign() {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [step, setStep] = useState(1);
+  const [showPreview, setShowPreview] = useState(false);
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, trigger, setValue, control, formState: { errors } } = useForm({
     defaultValues: { currency: 'RWF', category: 'education' },
   });
+
+  const formData = watch();
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -38,12 +85,22 @@ export default function CreateCampaign() {
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       {/* Header */}
-      <div>
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-600 mb-3 transition-colors">
-          <ArrowLeft size={15} /> {t('common.back')}
-        </button>
-        <h1 className="page-header">Create Campaign</h1>
-        <p className="text-sm text-gray-500 mt-1">Complete all details. Your campaign will be reviewed before going live.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-600 mb-3 transition-colors">
+            <ArrowLeft size={15} /> {t('common.back')}
+          </button>
+          <h1 className="page-header">Create Campaign</h1>
+          <p className="text-sm text-gray-500 mt-1">Complete all details. Your campaign will be reviewed before going live.</p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-8 flex-shrink-0"
+          onClick={() => setShowPreview(true)}
+        >
+          <Eye size={14} className="mr-1.5" /> Preview
+        </Button>
       </div>
 
       {/* Step indicator */}
@@ -71,14 +128,24 @@ export default function CreateCampaign() {
               error={errors.title?.message}
               {...register('title', { required: 'Title is required', minLength: { value: 10, message: 'Title must be at least 10 characters' } })}
             />
-            <Textarea
-              label="Description"
-              placeholder="Describe the need, the community, and what the funds will specifically be used for…"
-              rows={5}
-              required
-              hint="Be specific — campaigns with detailed descriptions raise 40% more."
-              error={errors.description?.message}
-              {...register('description', { required: 'Description is required', minLength: { value: 50, message: 'Minimum 50 characters' } })}
+            <Controller
+              name="description"
+              control={control}
+              rules={{
+                required: 'Description is required',
+                validate: (v) => stripHtml(v).length >= 50 || 'Minimum 50 characters',
+              }}
+              render={({ field: { onChange, value } }) => (
+                <RichTextEditor
+                  label="Description"
+                  required
+                  placeholder="Describe the need, the community, and what the funds will specifically be used for…"
+                  hint="Be specific — campaigns with detailed descriptions raise 40% more."
+                  error={errors.description?.message}
+                  value={value || ''}
+                  onChange={onChange}
+                />
+              )}
             />
             <Select
               label="Category"
@@ -97,7 +164,10 @@ export default function CreateCampaign() {
               error={errors.community?.message}
               {...register('community', { required: 'Community is required' })}
             />
-            <Button type="button" onClick={() => setStep(2)} className="w-full">
+            <Button type="button" onClick={async () => {
+              const ok = await trigger(['title', 'description', 'category', 'community']);
+              if (ok) setStep(2);
+            }} className="w-full">
               Continue →
             </Button>
           </>
@@ -113,13 +183,13 @@ export default function CreateCampaign() {
                 placeholder="e.g. 2000000"
                 required
                 error={errors.targetAmount?.message}
-                {...register('targetAmount', { required: 'Target amount is required', min: { value: 50000, message: 'Minimum RWF 50,000' } })}
+                {...register('targetAmount', { required: 'Target amount is required', valueAsNumber: true, min: { value: 50000, message: 'Minimum RWF 50,000' } })}
               />
               <Input
                 label="Expected Beneficiaries"
                 type="number"
                 placeholder="e.g. 50"
-                {...register('beneficiaryCount')}
+                {...register('beneficiaryCount', { valueAsNumber: true })}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -144,7 +214,7 @@ export default function CreateCampaign() {
                   <img src={previewUrl} alt="Cover preview" className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => { setPreviewUrl(''); register('coverImage').onChange({ target: { value: '' } }); }}
+                    onClick={() => { setPreviewUrl(''); setValue('coverImage', ''); }}
                     className="absolute top-2 right-2 p-1 rounded-md bg-black/50 text-white hover:bg-black/70"
                   >
                     <X size={14} />
@@ -173,7 +243,7 @@ export default function CreateCampaign() {
                       try {
                         const { url } = await uploadApi.image(file, 'campaigns');
                         setPreviewUrl(url);
-                        register('coverImage').onChange({ target: { value: url } });
+                        setValue('coverImage', url);
                       } catch {
                         toast.error('Upload failed. Check your Supabase config.');
                       } finally {
@@ -193,7 +263,10 @@ export default function CreateCampaign() {
             </div>
             <div className="flex gap-3">
               <Button type="button" variant="secondary" onClick={() => setStep(1)} className="flex-1">← Back</Button>
-              <Button type="button" onClick={() => setStep(3)} className="flex-1">Review →</Button>
+              <Button type="button" onClick={async () => {
+                const ok = await trigger(['targetAmount']);
+                if (ok) setStep(3);
+              }} className="flex-1">Review →</Button>
             </div>
           </>
         )}
@@ -220,6 +293,13 @@ export default function CreateCampaign() {
           </>
         )}
       </form>
+
+      <CampaignPreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        data={formData}
+        t={t}
+      />
     </div>
   );
 }

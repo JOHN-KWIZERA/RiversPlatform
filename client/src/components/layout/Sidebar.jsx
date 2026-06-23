@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard, Megaphone, Heart, BarChart3, Users, FileText,
-  Settings, LogOut, ChevronLeft, ChevronRight, Handshake, Star,
+  LayoutDashboard, Megaphone, Heart, Users, FileText,
+  Settings, LogOut, ChevronLeft, ChevronRight, Handshake, Star, Repeat2, ShieldCheck, Plus,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import Avatar from '../ui/Avatar';
@@ -11,17 +11,18 @@ import toast from 'react-hot-toast';
 
 const ROLE_NAVS = {
   admin: [
-    { to: '/dashboard', label: 'dashboard.overview', icon: LayoutDashboard },
-    { to: '/dashboard/campaigns', label: 'dashboard.campaigns', icon: Megaphone },
-    { to: '/dashboard/users', label: 'dashboard.users', icon: Users },
-    { to: '/dashboard/analytics', label: 'dashboard.analytics', icon: BarChart3 },
-    { to: '/dashboard/reports', label: 'dashboard.reports', icon: FileText },
+    { to: '/dashboard',               label: 'dashboard.overview',      icon: LayoutDashboard },
+    { to: '/dashboard/campaigns',     label: 'dashboard.campaigns',     icon: Megaphone },
+    { to: '/dashboard/users',         label: 'dashboard.users',         icon: Users },
+    { to: '/dashboard/reports',       label: 'dashboard.reports',       icon: FileText },
+    { to: '/dashboard/opportunities', label: 'dashboard.opportunities', icon: Handshake },
+    { to: '/dashboard/audit',         label: 'dashboard.audit',         icon: ShieldCheck },
   ],
   community_leader: [
-    { to: '/dashboard', label: 'dashboard.overview', icon: LayoutDashboard },
-    { to: '/dashboard/campaigns', label: 'dashboard.campaigns', icon: Megaphone },
-    { to: '/dashboard/reports', label: 'dashboard.reports', icon: FileText },
-    { to: '/dashboard/analytics', label: 'dashboard.analytics', icon: BarChart3 },
+    { to: '/dashboard',               label: 'dashboard.overview',      icon: LayoutDashboard },
+    { to: '/dashboard/campaigns',     label: 'dashboard.campaigns',     icon: Megaphone },
+    { to: '/dashboard/reports',       label: 'dashboard.reports',       icon: FileText },
+    { to: '/dashboard/opportunities', label: 'dashboard.opportunities', icon: Handshake },
   ],
   sponsor: [
     { to: '/dashboard', label: 'dashboard.overview', icon: LayoutDashboard },
@@ -31,7 +32,7 @@ const ROLE_NAVS = {
   ],
   volunteer: [
     { to: '/dashboard', label: 'dashboard.overview', icon: LayoutDashboard },
-    { to: '/dashboard/opportunities', label: 'nav.campaigns', icon: Handshake },
+    { to: '/dashboard/opportunities', label: 'dashboard.opportunities', icon: Handshake },
   ],
   beneficiary: [
     { to: '/dashboard', label: 'dashboard.overview', icon: LayoutDashboard },
@@ -41,9 +42,13 @@ const ROLE_NAVS = {
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, effectiveRole, switchRole, resetRole } = useAuth();
   const navigate = useNavigate();
-  const navItems = ROLE_NAVS[user?.role] || [];
+  const navItems = ROLE_NAVS[effectiveRole] || ROLE_NAVS[user?.role] || [];
+  const isSponsorMode = user?.role === 'community_leader' && effectiveRole === 'sponsor';
+  const currentRole = effectiveRole ?? user?.role;
+  const showCreateCampaign = currentRole === 'community_leader' && !isSponsorMode;
+  const showCreateOpportunity = currentRole === 'admin';
 
   const handleLogout = async () => {
     await logout();
@@ -75,6 +80,68 @@ export default function Sidebar({ collapsed, onToggle }) {
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
+
+      {/* Create CTA — role-specific */}
+      {(showCreateCampaign || showCreateOpportunity) && (
+        <div className={cn('px-2 py-2 border-b border-white/[0.07]', collapsed && 'flex justify-center')}>
+          {collapsed ? (
+            <button
+              onClick={() => navigate(showCreateCampaign ? '/dashboard/campaigns/new' : '/dashboard/opportunities/new')}
+              title={showCreateCampaign ? 'New Campaign' : 'New Opportunity'}
+              className="p-2 rounded-md bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition-all w-full flex justify-center"
+            >
+              <Plus size={18} />
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(showCreateCampaign ? '/dashboard/campaigns/new' : '/dashboard/opportunities/new')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 active:scale-[0.98] transition-all shadow-warm"
+            >
+              <Plus size={15} />
+              {showCreateCampaign ? 'New Campaign' : 'New Opportunity'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Role switcher — community leaders only */}
+      {user?.role === 'community_leader' && (
+        collapsed ? (
+          <div className="flex justify-center py-2 border-b border-white/[0.07]">
+            <button
+              onClick={() => isSponsorMode ? resetRole() : switchRole('sponsor')}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              title={isSponsorMode ? 'Switch to Leader mode' : 'Switch to Sponsor mode'}
+            >
+              <Repeat2 size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="px-3 py-3 border-b border-white/[0.07]">
+            <p className="text-xs text-slate-500 mb-2">Active mode</p>
+            <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
+              <button
+                onClick={resetRole}
+                className={cn(
+                  'flex-1 py-1.5 rounded-md text-xs font-semibold transition-all',
+                  !isSponsorMode ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white',
+                )}
+              >
+                Leader
+              </button>
+              <button
+                onClick={() => switchRole('sponsor')}
+                className={cn(
+                  'flex-1 py-1.5 rounded-md text-xs font-semibold transition-all',
+                  isSponsorMode ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white',
+                )}
+              >
+                Sponsor
+              </button>
+            </div>
+          </div>
+        )
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 flex flex-col gap-0.5 overflow-y-auto sidebar-scroll">
@@ -109,7 +176,9 @@ export default function Sidebar({ collapsed, onToggle }) {
             <Avatar name={user?.fullName} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-white truncate">{user?.fullName}</p>
-              <p className="text-xs text-slate-400 truncate capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-xs text-slate-400 truncate capitalize">
+                {isSponsorMode ? 'Sponsor mode' : user?.role?.replace('_', ' ')}
+              </p>
             </div>
           </div>
         )}

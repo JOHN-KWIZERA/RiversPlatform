@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -24,6 +24,11 @@ export function AuthProvider({ children }) {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [dbUser, setDbUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState(null); // null = use DB role
+  // Prevents onAuthStateChanged from calling /me during active registration,
+  // which would auto-create the user with the wrong default role before
+  // authApi.register() has a chance to run.
+  const isRegistering = useRef(false);
 
   useEffect(() => {
     // Demo mode — no Firebase needed
@@ -38,14 +43,14 @@ export function AuthProvider({ children }) {
     try {
       unsub = onAuthStateChanged(auth, async (user) => {
         setFirebaseUser(user);
-        if (user) {
+        if (user && !isRegistering.current) {
           try {
             const profile = await authApi.me();
             setDbUser(profile);
           } catch {
             setDbUser(null);
           }
-        } else {
+        } else if (!user) {
           setDbUser(null);
         }
         setLoading(false);
@@ -61,12 +66,46 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
 
+  const registerWithGoogle = async ({ role, organisation, community, phone }) => {
+    isRegistering.current = true;
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      const idToken = await cred.user.getIdToken();
+      try {
+        const profile = await authApi.register({
+          idToken,
+          fullName: cred.user.displayName || cred.user.email?.split('@')[0] || 'User',
+          role,
+          organisation: organisation || '',
+          community: community || '',
+          phone: phone || '',
+        });
+        setDbUser(profile);
+        return profile;
+      } catch (err) {
+        if (err?.message === 'User already registered') {
+          const profile = await authApi.me();
+          setDbUser(profile);
+          return profile;
+        }
+        throw err;
+      }
+    } finally {
+      isRegistering.current = false;
+    }
+  };
+
   const register = async ({ email, password, fullName, role, organisation, community, phone }) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const idToken = await cred.user.getIdToken();
-    const profile = await authApi.register({ idToken, fullName, role, organisation, community, phone });
-    setDbUser(profile);
-    return profile;
+    isRegistering.current = true;
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const idToken = await cred.user.getIdToken();
+      const profile = await authApi.register({ idToken, fullName, role, organisation, community, phone });
+      setDbUser(profile);
+      return profile;
+    } finally {
+      isRegistering.current = false;
+    }
   };
 
   const enterDemo = (role) => {
@@ -75,9 +114,16 @@ export function AuthProvider({ children }) {
     setFirebaseUser(null);
   };
 
+  // Switch to a temporary role view (community_leader only → sponsor)
+  const switchRole = (role) => setActiveRole(role);
+  const resetRole = () => setActiveRole(null);
+  // What the UI should use for routing and nav
+  const effectiveRole = activeRole ?? dbUser?.role;
+
   const logout = () => {
     sessionStorage.removeItem('rivers_demo_role');
     setDbUser(null);
+    setActiveRole(null);
     try { signOut(auth); } catch { /* Firebase may not be configured */ }
   };
 
@@ -91,7 +137,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, user: dbUser, loading, login, loginWithGoogle, register, logout, resetPassword, refreshProfile, enterDemo }}>
+    <AuthContext.Provider value={{ firebaseUser, user: dbUser, loading, effectiveRole, switchRole, resetRole, login, loginWithGoogle, registerWithGoogle, register, logout, resetPassword, refreshProfile, enterDemo }}>
       {children}
     </AuthContext.Provider>
   );

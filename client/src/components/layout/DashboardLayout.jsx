@@ -1,28 +1,56 @@
-import { useState, useRef, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell, Menu, Globe2, CheckCircle2, Megaphone, Heart } from 'lucide-react';
+import { Bell, Menu, Globe2, CheckCircle2, Megaphone, Heart, Info, Users, Trash2, Settings, LogOut, ChevronDown } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '../../context/AuthContext';
-import { cn } from '../../lib/utils';
+import { notificationApi } from '../../lib/api';
+import { cn, timeAgo } from '../../lib/utils';
 
-const SAMPLE_NOTIFICATIONS = [
-  { id: 1, icon: Megaphone, color: 'text-brand-500 bg-brand-50', title: 'Campaign approved', body: 'Your campaign has been approved and is now live.', time: '2h ago', unread: true },
-  { id: 2, icon: Heart,     color: 'text-forest-600 bg-forest-50', title: 'New donation received', body: 'RWF 50,000 donated to School Supplies campaign.', time: '5h ago', unread: true },
-  { id: 3, icon: CheckCircle2, color: 'text-amber-600 bg-amber-50', title: 'Impact report ready', body: 'Q1 2026 impact report is now available.', time: '1d ago', unread: false },
-];
+const TYPE_ICON = {
+  campaign_approved:  { Icon: CheckCircle2, color: 'text-forest-600 bg-forest-50' },
+  campaign_rejected:  { Icon: Megaphone,    color: 'text-red-500 bg-red-50' },
+  donation_received:  { Icon: Heart,        color: 'text-brand-500 bg-brand-50' },
+  campaign_milestone: { Icon: CheckCircle2, color: 'text-amber-600 bg-amber-50' },
+  campaign_created:   { Icon: Megaphone,    color: 'text-brand-500 bg-brand-50' },
+  info:               { Icon: Info,         color: 'text-gray-500 bg-gray-100' },
+};
+const DEFAULT_ICON = { Icon: Info, color: 'text-gray-500 bg-gray-100' };
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
-  const { user } = useAuth();
+  const profileRef = useRef(null);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const { notifications: list, unreadCount: count } = await notificationApi.getAll();
+      setNotifications(list);
+      setUnreadCount(count);
+    } catch {
+      // silently fail — notifications are non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60_000); // poll every minute
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
 
   const toggleLang = () => {
     const next = i18n.language === 'en' ? 'rw' : 'en';
@@ -30,11 +58,37 @@ export default function DashboardLayout() {
     localStorage.setItem('rivers_lang', next);
   };
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const markAllRead = async () => {
+    await notificationApi.markRead([]);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
 
-  // Close on outside click
+  const handleNotifClick = async (n) => {
+    if (!n.read) {
+      await notificationApi.markRead([n._id]);
+      setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true } : x));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    if (n.link) { setNotifOpen(false); navigate(n.link); }
+  };
+
+  const deleteNotif = async (e, id) => {
+    e.stopPropagation();
+    await notificationApi.delete(id);
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    setUnreadCount(prev => {
+      const wasUnread = notifications.find(n => n._id === id && !n.read);
+      return wasUnread ? Math.max(0, prev - 1) : prev;
+    });
+  };
+
+  // Close dropdowns on outside click
   useEffect(() => {
-    const handler = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -87,7 +141,7 @@ export default function DashboardLayout() {
                 <Bell size={18} />
                 {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 w-4 h-4 bg-brand-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {unreadCount}
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
@@ -102,32 +156,84 @@ export default function DashboardLayout() {
                       </button>
                     )}
                   </div>
+
                   <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                    {notifications.map((n) => {
-                      const Icon = n.icon;
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <Bell size={24} className="text-gray-300 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400">No notifications yet</p>
+                      </div>
+                    ) : notifications.map((n) => {
+                      const { Icon, color } = TYPE_ICON[n.type] || DEFAULT_ICON;
                       return (
-                        <div key={n.id} className={cn('flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer', n.unread && 'bg-brand-50/40')}>
-                          <div className={cn('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5', n.color)}>
+                        <div
+                          key={n._id}
+                          onClick={() => handleNotifClick(n)}
+                          className={cn('group flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer', !n.read && 'bg-brand-50/40')}
+                        >
+                          <div className={cn('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5', color)}>
                             <Icon size={15} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-[#001E2B]">{n.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
-                            <p className="text-[10px] text-gray-400 mt-1">{n.time}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
                           </div>
-                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0 mt-2" />}
+                          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />}
+                            <button
+                              onClick={(e) => deleteNotif(e, n._id)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-400 hover:text-red-500 transition-all"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
+
                   <div className="px-4 py-2.5 border-t border-gray-100 text-center">
-                    <button className="text-xs text-brand-600 hover:underline font-medium">View all notifications</button>
+                    <button className="text-xs text-brand-600 hover:underline font-medium" onClick={() => setNotifOpen(false)}>
+                      Close
+                    </button>
                   </div>
                 </div>
               )}
             </div>
 
-            <Avatar name={user?.fullName} size="sm" className="cursor-pointer" />
+            {/* Profile dropdown */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-1.5 rounded-lg p-1 hover:bg-gray-100 transition-colors"
+              >
+                <Avatar name={user?.fullName} size="sm" />
+                <ChevronDown size={13} className={cn('text-gray-400 transition-transform', profileOpen && 'rotate-180')} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-lg shadow-atlas z-50 animate-scale-in overflow-hidden py-1">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-[#001E2B] truncate">{user?.fullName}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 capitalize">{user?.role?.replace('_', ' ')}</p>
+                  </div>
+                  <button
+                    onClick={() => { navigate('/dashboard/settings'); setProfileOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                  >
+                    <Settings size={14} className="text-gray-400" /> Settings
+                  </button>
+                  <div className="border-t border-gray-100 mt-1" />
+                  <button
+                    onClick={async () => { setProfileOpen(false); await handleLogout(); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
+                  >
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

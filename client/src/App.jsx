@@ -21,12 +21,20 @@ const CampaignsRouter   = lazy(() => import('./pages/CampaignsRouter'));
 const UserManagement    = lazy(() => import('./pages/admin/UserManagement'));
 const LeaderDashboard   = lazy(() => import('./pages/leader/LeaderDashboard'));
 const CreateCampaign    = lazy(() => import('./pages/leader/CreateCampaign'));
+const EditCampaign      = lazy(() => import('./pages/leader/EditCampaign'));
 const SponsorDashboard  = lazy(() => import('./pages/sponsor/SponsorDashboard'));
 const BrowseCampaigns   = lazy(() => import('./pages/sponsor/BrowseCampaigns'));
-const VolunteerDashboard   = lazy(() => import('./pages/volunteer/VolunteerDashboard'));
+const VolunteerDashboard      = lazy(() => import('./pages/volunteer/VolunteerDashboard'));
+const VolunteerOpportunities  = lazy(() => import('./pages/volunteer/VolunteerOpportunities'));
 const BeneficiaryDashboard = lazy(() => import('./pages/beneficiary/BeneficiaryDashboard'));
 const DonationsPage     = lazy(() => import('./pages/DonationsPage'));
 const Settings          = lazy(() => import('./pages/Settings'));
+const ReportsPage       = lazy(() => import('./pages/ReportsPage'));
+const AuditLogPage           = lazy(() => import('./pages/admin/AuditLog'));
+const OpportunityManagement  = lazy(() => import('./pages/admin/OpportunityManagement'));
+const OpportunityDetail      = lazy(() => import('./pages/opportunities/OpportunityDetail'));
+const OpportunityApply       = lazy(() => import('./pages/opportunities/OpportunityApply'));
+const OpportunityFormPage    = lazy(() => import('./pages/opportunities/OpportunityFormPage'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -48,6 +56,15 @@ const ComingSoon = ({ icon: Icon, title, desc }) => (
     </span>
   </div>
 );
+
+function OpportunitiesRouter() {
+  const { user, effectiveRole } = useAuth();
+  const role = effectiveRole ?? user?.role;
+  if (role === 'admin' || role === 'community_leader') {
+    return <Suspense fallback={<PageLoader />}><OpportunityManagement /></Suspense>;
+  }
+  return <Suspense fallback={<PageLoader />}><VolunteerOpportunities /></Suspense>;
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -97,8 +114,9 @@ export default function App() {
             <Route index element={<DashboardRouter />} />
 
             {/* Campaigns — role-aware */}
-            <Route path="campaigns"     element={<CampaignsRouter />} />
-            <Route path="campaigns/new" element={<CreateCampaign />} />
+            <Route path="campaigns"          element={<CampaignsRouter />} />
+            <Route path="campaigns/new"      element={<CreateCampaign />} />
+            <Route path="campaigns/:id/edit" element={<EditCampaign />} />
 
             {/* Admin */}
             <Route path="users" element={<UserManagement />} />
@@ -106,9 +124,6 @@ export default function App() {
             {/* Sponsor */}
             <Route path="browse"    element={<BrowseCampaigns />} />
             <Route path="donations" element={<DonationsPage />} />
-
-            {/* Volunteer */}
-            <Route path="opportunities" element={<VolunteerDashboard />} />
 
             {/* Beneficiary */}
             <Route path="aid" element={<BeneficiaryDashboard />} />
@@ -120,9 +135,13 @@ export default function App() {
             <Route path="analytics" element={
               <ComingSoon icon={BarChart2} title="Analytics" desc="Full analytics dashboard with charts, trends, and exports coming in the next sprint." />
             } />
-            <Route path="reports" element={
-              <ComingSoon icon={FileText} title="Impact Reports" desc="Automated impact report generation and PDF export coming in the next sprint." />
-            } />
+            <Route path="reports"                    element={<ReportsPage />} />
+            <Route path="audit"                    element={<AuditLogPage />} />
+            <Route path="opportunities"            element={<OpportunitiesRouter />} />
+            <Route path="opportunities/new"        element={<OpportunityFormPage />} />
+            <Route path="opportunities/:id"        element={<OpportunityDetail />} />
+            <Route path="opportunities/:id/edit"   element={<OpportunityFormPage />} />
+            <Route path="opportunities/:id/apply"  element={<OpportunityApply />} />
           </Route>
 
           {/* 404 */}

@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
 const { initFirebase } = require('./config/firebase');
+const { initBucket } = require('./config/supabase');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 5000;
 // Initialise services
 connectDB();
 initFirebase();
+initBucket();
 
 // Middleware
 app.use(helmet());

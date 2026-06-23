@@ -85,7 +85,9 @@
     "youth_employed": "Youth Employed",
     "pending_review": "Pending Review",
     "recent_donations": "Recent Donations",
-    "recent_campaigns": "Recent Campaigns"
+    "recent_campaigns": "Recent Campaigns",
+    "audit": "Audit Trail",
+    "opportunities": "Opportunities"
   },
   "status": {
     "draft": "Draft",

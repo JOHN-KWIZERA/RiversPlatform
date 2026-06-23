@@ -45,11 +45,36 @@ export const authApi = {
   register: (data) => api.post('/auth/register', data),
   me: () => api.get('/auth/me'),
   updateProfile: (data) => api.patch('/auth/me', data),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
 };
 
 export const userApi = {
   getAll: (params) => api.get('/users', { params }),
   verify: (id, isVerified) => api.patch(`/users/${id}/verify`, { isVerified }),
+};
+
+export const beneficiaryApi = {
+  getMyProfile: () => api.get('/beneficiaries/me'),
+  updateMyProfile: (data) => api.patch('/beneficiaries/me', data),
+  getAll: (params) => api.get('/beneficiaries', { params }),
+  addAssistance: (beneficiaryId, data) => api.post(`/beneficiaries/${beneficiaryId}/assistance`, data),
+  addProgress: (beneficiaryId, data) => api.post(`/beneficiaries/${beneficiaryId}/progress`, data),
+};
+
+export const opportunityApi = {
+  getAll: (params) => api.get('/opportunities', { params }),
+  getById: (id) => api.get(`/opportunities/${id}`),
+  create: (data) => api.post('/opportunities', data),
+  update: (id, data) => api.patch(`/opportunities/${id}`, data),
+  apply: (id, data) => api.post(`/opportunities/${id}/apply`, data),
+  getMyApplications: () => api.get('/opportunities/my-applications'),
+  updateApplicationStatus: (id, appId, status) => api.patch(`/opportunities/${id}/applications/${appId}`, { status }),
+};
+
+export const notificationApi = {
+  getAll: () => api.get('/notifications'),
+  markRead: (ids = []) => api.patch('/notifications/read', { ids }),
+  delete: (id) => api.delete(`/notifications/${id}`),
 };
 
 export const uploadApi = {
@@ -58,6 +83,14 @@ export const uploadApi = {
     form.append('file', file);
     return api.post(`/upload/image?folder=${folder}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  document: (file, folder = 'documents') => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/upload/document?folder=${folder}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
     });
   },
 };

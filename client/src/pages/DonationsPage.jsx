@@ -26,7 +26,7 @@ export default function DonationsPage() {
     .reduce((sum, d) => sum + (d.amount || 0), 0);
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="page-header">{t('dashboard.donations') || 'My Donations'}</h1>

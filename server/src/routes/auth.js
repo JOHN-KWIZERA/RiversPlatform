@@ -3,6 +3,7 @@ const router = express.Router();
 const { admin } = require('../config/firebase');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
+const { sendPasswordReset } = require('../services/emailService');
 
 // Register – called after Firebase signup on the client
 router.post('/register', async (req, res, next) => {
@@ -38,21 +39,26 @@ router.get('/me', async (req, res, next) => {
     }
 
     const decoded = await admin.auth().verifyIdToken(authHeader.split(' ')[1]);
-    let user = await User.findOne({ firebaseUid: decoded.uid });
-
-    if (!user) {
-      // User exists in Firebase but hasn't registered through the app yet — create a basic profile
-      user = await User.create({
-        firebaseUid: decoded.uid,
-        email: decoded.email || '',
-        fullName: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'User'),
-        role: 'sponsor', // default role — can be changed in Settings
-      });
-    }
-
+    const user = await User.findOne({ firebaseUid: decoded.uid });
+    if (!user) return res.status(404).json({ message: 'User not found. Please complete registration.' });
     res.json(user);
   } catch (err) {
     next(err);
+  }
+});
+
+// Forgot password — generate Firebase reset link and send branded email
+router.post('/forgot-password', async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+  try {
+    const resetLink = await admin.auth().generatePasswordResetLink(email);
+    const dbUser = await User.findOne({ email }).lean();
+    await sendPasswordReset(email, resetLink, dbUser?.fullName || '');
+    res.json({ success: true });
+  } catch (err) {
+    // Return success regardless to avoid email enumeration
+    res.json({ success: true });
   }
 });
 

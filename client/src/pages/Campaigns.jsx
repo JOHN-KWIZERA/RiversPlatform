@@ -22,7 +22,7 @@ export default function Campaigns() {
 
   const fetchCampaigns = useCallback(() => {
     setLoading(true);
-    const params = { limit: 24 };
+    const params = { status: 'active', limit: 24 };
     if (category !== 'all') params.category = category;
     if (search.trim()) params.search = search.trim();
     campaignApi.getAll(params)

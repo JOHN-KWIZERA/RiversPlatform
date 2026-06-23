@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Globe2, Menu, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import Button from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
+const DARK_HERO_ROUTES = ['/', '/about'];
+
 export default function Navbar() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const hasDarkHero = DARK_HERO_ROUTES.includes(location.pathname);
+  const isLight = scrolled || !hasDarkHero;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -28,7 +34,7 @@ export default function Navbar() {
   return (
     <header className={cn(
       'fixed top-0 inset-x-0 z-40 transition-all duration-300',
-      scrolled ? 'bg-white/98 backdrop-blur-md shadow-sm border-b border-gray-200' : 'bg-transparent'
+      isLight ? 'bg-white/98 backdrop-blur-md shadow-sm border-b border-gray-200' : 'bg-transparent'
     )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
@@ -36,20 +42,20 @@ export default function Navbar() {
           <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center shadow-warm group-hover:bg-brand-600 transition-colors">
             <span className="text-white text-sm font-black">R</span>
           </div>
-          <span className={cn('font-black text-lg tracking-tight transition-colors', scrolled ? 'text-[#001E2B]' : 'text-white')}>RIVERS</span>
+          <span className={cn('font-black text-lg tracking-tight transition-colors', isLight ? 'text-[#001E2B]' : 'text-white')}>RIVERS</span>
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
-          <Link to="/campaigns" className={cn('px-3 py-2 rounded-md text-sm font-medium transition-colors', scrolled ? 'text-gray-700 hover:text-brand-600' : 'text-white/80 hover:text-white')}>{t('nav.campaigns')}</Link>
-          <Link to="/about" className={cn('px-3 py-2 rounded-md text-sm font-medium transition-colors', scrolled ? 'text-gray-700 hover:text-brand-600' : 'text-white/80 hover:text-white')}>{t('nav.about')}</Link>
+          <Link to="/campaigns" className={cn('px-3 py-2 rounded-md text-sm font-medium transition-colors', isLight ? 'text-gray-700 hover:text-brand-600' : 'text-white/80 hover:text-white')}>{t('nav.campaigns')}</Link>
+          <Link to="/about" className={cn('px-3 py-2 rounded-md text-sm font-medium transition-colors', isLight ? 'text-gray-700 hover:text-brand-600' : 'text-white/80 hover:text-white')}>{t('nav.about')}</Link>
         </nav>
 
         {/* Actions */}
         <div className="hidden md:flex items-center gap-2">
           <button
             onClick={toggleLang}
-            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white/70 hover:bg-white/10')}
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors', isLight ? 'text-gray-600 hover:bg-gray-100' : 'text-white/70 hover:bg-white/10')}
           >
             <Globe2 size={14} />
             {i18n.language === 'en' ? 'EN' : 'RW'}
@@ -60,7 +66,13 @@ export default function Navbar() {
             </Button>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => navigate('/login')}>{t('nav.login')}</Button>
+              <Button
+                variant="ghost"
+                className={cn(!isLight && 'text-white/90 hover:bg-white/10 hover:text-white')}
+                onClick={() => navigate('/login')}
+              >
+                {t('nav.login')}
+              </Button>
               <Button variant="primary" onClick={() => navigate('/signup')}>{t('nav.signup')}</Button>
             </>
           )}
