@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ShieldCheck, User, Megaphone, Heart, CheckCircle2, XCircle, LogIn, Clock } from 'lucide-react';
-import api from '../../lib/api';
+import { auditApi } from '../../lib/api';
 import Spinner from '../../components/ui/Spinner';
 import { timeAgo } from '../../lib/utils';
 
@@ -32,7 +32,7 @@ export default function AuditLogPage() {
     setLoading(true);
     const params = { page, limit: 50 };
     if (filter !== 'all') params.action = filter;
-    api.get('/audit', { params })
+    auditApi.getAll(params)
       .then(({ logs: list, total: t }) => { setLogs(list); setTotal(t); })
       .catch(() => {})
       .finally(() => setLoading(false));

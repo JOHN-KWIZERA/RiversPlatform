@@ -478,12 +478,14 @@ export const auditApi = {
     const { from, to } = range(page, limit);
 
     let query = supabase.from('audit_logs')
-      .select('*, actor:actor_id(id, full_name, avatar)')
+      .select('*, actor:actor_id(id, full_name, avatar)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
     if (action) query = query.eq('action', action);
-    return q(query);
+    const { data, count, error } = await query;
+    if (error) throw error;
+    return { logs: deepCamelCase(data), total: count ?? 0 };
   },
 
   log: async ({ action, targetType = '', targetId = null, targetLabel = '', metadata = {} }) => {
