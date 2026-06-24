@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Search, CheckCircle2, XCircle, Eye, MapPin, Globe,
-  ArrowLeft, Clock, Users, Heart, Zap, Calendar, X,
+  ArrowLeft, Clock, Users, Heart, Zap, Calendar, X, Archive, ArchiveRestore,
 } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -19,6 +19,7 @@ const STATUS_FILTERS = ['all', 'pending_review', 'active', 'approved', 'complete
 
 export default function CampaignApproval() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState('active');
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -29,14 +30,14 @@ export default function CampaignApproval() {
 
   useEffect(() => {
     setLoading(true);
-    const params = { limit: 50 };
+    const params = { limit: 50, archived: tab === 'archived' };
     if (statusFilter !== 'all') params.status = statusFilter;
     if (search.trim()) params.search = search.trim();
     campaignApi.getAll(params)
       .then(res => setCampaigns(res.campaigns))
       .catch(() => toast.error('Failed to load campaigns.'))
       .finally(() => setLoading(false));
-  }, [statusFilter, search]);
+  }, [statusFilter, search, tab]);
 
   const openDetail = (campaign) => {
     setSelected(campaign);
@@ -76,11 +77,56 @@ export default function CampaignApproval() {
     }
   };
 
+  const handleArchive = async (campaign) => {
+    setActionLoading(true);
+    try {
+      await campaignApi.archive(campaign._id);
+      setCampaigns(prev => prev.filter(c => c._id !== campaign._id));
+      setSelected(null);
+      toast.success(`"${campaign.title}" archived.`);
+    } catch {
+      toast.error('Failed to archive campaign.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnarchive = async (campaign) => {
+    setActionLoading(true);
+    try {
+      await campaignApi.unarchive(campaign._id);
+      setCampaigns(prev => prev.filter(c => c._id !== campaign._id));
+      setSelected(null);
+      toast.success(`"${campaign.title}" restored.`);
+    } catch {
+      toast.error('Failed to restore campaign.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="page-header">{t('dashboard.campaigns')}</h1>
         <p className="text-sm text-gray-500 mt-1">Review, approve, and manage all platform campaigns.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {['active', 'archived'].map((t) => (
+          <button
+            key={t}
+            onClick={() => { setTab(t); setStatusFilter('all'); }}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
+              tab === t
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t === 'archived' ? 'Archived' : 'Active'}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -169,7 +215,7 @@ export default function CampaignApproval() {
                         >
                           <Eye size={14} />
                         </button>
-                        {c.status === 'pending_review' && (
+                        {(c.status === 'pending_review' || c.status === 'draft') && (
                           <>
                             <button
                               onClick={() => openDetail(c)}
@@ -203,10 +249,13 @@ export default function CampaignApproval() {
       {/* Full-screen campaign detail overlay */}
       {selected && <CampaignDetailOverlay
         campaign={selected}
+        tab={tab}
         note={note}
         onNoteChange={setNote}
         onApprove={handleApprove}
         onReject={handleReject}
+        onArchive={handleArchive}
+        onUnarchive={handleUnarchive}
         onClose={closeDetail}
         actionLoading={actionLoading}
         t={t}
@@ -215,7 +264,7 @@ export default function CampaignApproval() {
   );
 }
 
-function CampaignDetailOverlay({ campaign: c, note, onNoteChange, onApprove, onReject, onClose, actionLoading, t }) {
+function CampaignDetailOverlay({ campaign: c, tab, note, onNoteChange, onApprove, onReject, onArchive, onUnarchive, onClose, actionLoading, t }) {
   const pct = progressPercent(c.raisedAmount, c.targetAmount);
   const daysLeft = c.endDate
     ? Math.max(0, Math.ceil((new Date(c.endDate) - Date.now()) / 86400000))
@@ -356,7 +405,7 @@ function CampaignDetailOverlay({ campaign: c, note, onNoteChange, onApprove, onR
                 )}
 
                 {/* Approve / Reject */}
-                {c.status === 'pending_review' && (
+                {(c.status === 'pending_review' || c.status === 'draft') && (
                   <div className="flex flex-col gap-3">
                     <div>
                       <label className="text-xs font-semibold text-gray-600 block mb-1">
@@ -405,6 +454,29 @@ function CampaignDetailOverlay({ campaign: c, note, onNoteChange, onApprove, onR
                     }
                   </div>
                 )}
+
+                {/* Archive / Restore */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  {tab === 'archived' ? (
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      leftIcon={<ArchiveRestore size={14} />}
+                      onClick={() => onUnarchive(c)}
+                      loading={actionLoading}
+                    >
+                      Restore campaign
+                    </Button>
+                  ) : (
+                    <button
+                      onClick={() => onArchive(c)}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md border border-gray-200 text-sm text-gray-500 hover:text-amber-700 hover:border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                    >
+                      <Archive size={14} /> Archive campaign
+                    </button>
+                  )}
+                </div>
 
                 {/* Leader info */}
                 {c.leaderId && (

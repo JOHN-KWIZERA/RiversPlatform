@@ -87,12 +87,13 @@ export const authApi = {
 
 export const campaignApi = {
   getAll: async (params = {}) => {
-    const { status, category, community, search, page = 1, limit = 12 } = params;
+    const { status, category, community, search, page = 1, limit = 12, archived = false } = params;
     const { from, to } = range(page, limit);
 
     let query = supabase
       .from('campaigns')
       .select('*, leader:leader_id(id, full_name, avatar, community)', { count: 'exact' })
+      .eq('is_archived', archived)
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -117,12 +118,13 @@ export const campaignApi = {
     return normalizeCampaign(data);
   },
 
-  getMy: async () => {
+  getMy: async ({ archived = false } = {}) => {
     const id = await uid();
     const data = await q(
       supabase.from('campaigns')
         .select('*')
         .eq('leader_id', id)
+        .eq('is_archived', archived)
         .order('created_at', { ascending: false })
     );
     return Array.isArray(data) ? data : [];
@@ -147,6 +149,7 @@ export const campaignApi = {
       is_urgent:         data.isUrgent          || false,
       is_featured:       data.isFeatured        || false,
       beneficiary_count: data.beneficiaryCount  || 0,
+      status:            data.status            || 'pending_review',
     };
     return qOne(supabase.from('campaigns').insert(payload).select().single());
   },
@@ -168,6 +171,12 @@ export const campaignApi = {
         .eq('id', id).select().single()
     );
   },
+
+  archive: async (id) =>
+    qOne(supabase.from('campaigns').update({ is_archived: true,  updated_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+  unarchive: async (id) =>
+    qOne(supabase.from('campaigns').update({ is_archived: false, updated_at: new Date().toISOString() }).eq('id', id).select().single()),
 
   // Admin approves or rejects — triggers handle notification
   approve: async (id, { status, adminNote }) => {
@@ -431,12 +440,13 @@ export const beneficiaryApi = {
 
 export const opportunityApi = {
   getAll: async (params = {}) => {
-    const { status, community, search, page = 1, limit = 20 } = params;
+    const { status, community, search, page = 1, limit = 20, archived = false } = params;
     const { from, to } = range(page, limit);
 
     let query = supabase
       .from('opportunities')
       .select('*, createdByUser:created_by(id, full_name, avatar)', { count: 'exact' })
+      .eq('is_archived', archived)
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -490,6 +500,12 @@ export const opportunityApi = {
         .eq('id', id).select().single()
     );
   },
+
+  archive: async (id) =>
+    qOne(supabase.from('opportunities').update({ is_archived: true,  updated_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+  unarchive: async (id) =>
+    qOne(supabase.from('opportunities').update({ is_archived: false, updated_at: new Date().toISOString() }).eq('id', id).select().single()),
 
   apply: async (opportunityId, data) => {
     const id = await uid();
