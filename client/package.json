@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "@tiptap/extension-image": "^3.27.1",
     "@tiptap/extension-link": "^3.27.1",
     "@tiptap/extension-placeholder": "^3.27.1",
@@ -15,9 +16,7 @@
     "@tiptap/pm": "^3.27.1",
     "@tiptap/react": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
-    "axios": "^1.7.2",
     "clsx": "^2.1.1",
-    "firebase": "^10.12.2",
     "i18next": "^23.11.5",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

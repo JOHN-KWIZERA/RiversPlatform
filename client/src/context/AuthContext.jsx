@@ -1,37 +1,35 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-} from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
-import { authApi } from '../lib/api';
+import { supabase, deepCamelCase } from '../lib/supabase';
 
 const DEMO_USERS = {
-  admin: { _id: 'demo-admin', fullName: 'Demo Admin', email: 'admin@rivers.demo', role: 'admin', isVerified: true, community: '', organisation: '' },
-  community_leader: { _id: 'demo-leader', fullName: 'Marie Uwimana', email: 'leader@rivers.demo', role: 'community_leader', isVerified: true, community: 'Bumbogo, Gasabo', organisation: '' },
-  sponsor: { _id: 'demo-sponsor', fullName: 'Amahoro Foundation', email: 'sponsor@rivers.demo', role: 'sponsor', isVerified: true, community: '', organisation: 'Amahoro Foundation' },
-  volunteer: { _id: 'demo-volunteer', fullName: 'Diane Mukansanga', email: 'vol@rivers.demo', role: 'volunteer', isVerified: false, community: '', organisation: '' },
-  beneficiary: { _id: 'demo-beneficiary', fullName: 'Solange Iradukunda', email: 'beneficiary@rivers.demo', role: 'beneficiary', isVerified: false, community: 'Gitega', organisation: '' },
+  admin:            { id: 'demo-admin',       fullName: 'Demo Admin',         email: 'admin@rivers.demo',       role: 'admin',            isVerified: true,  community: '', organisation: '' },
+  community_leader: { id: 'demo-leader',      fullName: 'Marie Uwimana',      email: 'leader@rivers.demo',      role: 'community_leader', isVerified: true,  community: 'Bumbogo, Gasabo', organisation: '' },
+  sponsor:          { id: 'demo-sponsor',     fullName: 'Amahoro Foundation', email: 'sponsor@rivers.demo',     role: 'sponsor',          isVerified: true,  community: '', organisation: 'Amahoro Foundation' },
+  volunteer:        { id: 'demo-volunteer',   fullName: 'Diane Mukansanga',   email: 'vol@rivers.demo',         role: 'volunteer',        isVerified: false, community: '', organisation: '' },
+  beneficiary:      { id: 'demo-beneficiary', fullName: 'Solange Iradukunda', email: 'beneficiary@rivers.demo', role: 'beneficiary',      isVerified: false, community: 'Gitega', organisation: '' },
 };
 
 const AuthContext = createContext(null);
 
+async function fetchProfile(userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) return null;
+  return deepCamelCase(data);
+}
+
 export function AuthProvider({ children }) {
-  const [firebaseUser, setFirebaseUser] = useState(null);
-  const [dbUser, setDbUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeRole, setActiveRole] = useState(null); // null = use DB role
-  // Prevents onAuthStateChanged from calling /me during active registration,
-  // which would auto-create the user with the wrong default role before
-  // authApi.register() has a chance to run.
-  const isRegistering = useRef(false);
+  const [supabaseUser, setSupabaseUser]   = useState(null);
+  const [dbUser,       setDbUser]         = useState(null);
+  const [loading,      setLoading]        = useState(true);
+  const [activeRole,   setActiveRole]     = useState(null);
+  const isRegistering                     = useRef(false);
 
   useEffect(() => {
-    // Demo mode — no Firebase needed
+    // Demo mode — no Supabase needed
     const savedDemo = sessionStorage.getItem('rivers_demo_role');
     if (savedDemo && DEMO_USERS[savedDemo]) {
       setDbUser(DEMO_USERS[savedDemo]);
@@ -39,68 +37,107 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    let unsub = () => {};
-    try {
-      unsub = onAuthStateChanged(auth, async (user) => {
-        setFirebaseUser(user);
-        if (user && !isRegistering.current) {
-          try {
-            const profile = await authApi.me();
-            setDbUser(profile);
-          } catch {
-            setDbUser(null);
+    // Bootstrap from existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user && !isRegistering.current) {
+        setSupabaseUser(session.user);
+        const profile = await fetchProfile(session.user.id);
+        setDbUser(profile);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user && !isRegistering.current) {
+          setSupabaseUser(session.user);
+
+          if (event === 'SIGNED_IN') {
+            // For Google OAuth new users: profile may need creating from localStorage
+            const profile = await fetchProfile(session.user.id);
+            if (!profile) {
+              await createProfileFromGoogleSignup(session.user);
+              setDbUser(await fetchProfile(session.user.id));
+            } else {
+              setDbUser(profile);
+            }
           }
-        } else if (!user) {
+        } else if (event === 'SIGNED_OUT') {
+          setSupabaseUser(null);
           setDbUser(null);
         }
         setLoading(false);
-      });
-    } catch {
-      // Firebase not configured — stay in demo-capable guest mode
-      setLoading(false);
-    }
-    return unsub;
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
+  async function createProfileFromGoogleSignup(user) {
+    const pending = JSON.parse(localStorage.getItem('rivers_google_signup') || '{}');
+    localStorage.removeItem('rivers_google_signup');
 
-  const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
+    await supabase.from('users').insert({
+      id:           user.id,
+      email:        user.email,
+      full_name:    pending.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      role:         pending.role         || 'beneficiary',
+      organisation: pending.organisation || '',
+      community:    pending.community    || '',
+      phone:        pending.phone        || '',
+    });
+  }
 
-  const registerWithGoogle = async ({ role, organisation, community, phone }) => {
-    isRegistering.current = true;
-    try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      const idToken = await cred.user.getIdToken();
-      try {
-        const profile = await authApi.register({
-          idToken,
-          fullName: cred.user.displayName || cred.user.email?.split('@')[0] || 'User',
-          role,
-          organisation: organisation || '',
-          community: community || '',
-          phone: phone || '',
-        });
-        setDbUser(profile);
-        return profile;
-      } catch (err) {
-        if (err?.message === 'User already registered') {
-          const profile = await authApi.me();
-          setDbUser(profile);
-          return profile;
-        }
-        throw err;
-      }
-    } finally {
-      isRegistering.current = false;
-    }
+  // ── Auth methods ────────────────────────────────────────────
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+
+    const profile = await fetchProfile(data.user.id);
+    setDbUser(profile);
+    return profile;
+  };
+
+  const loginWithGoogle = () =>
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+
+  const registerWithGoogle = ({ role, organisation, community, phone, fullName }) => {
+    localStorage.setItem('rivers_google_signup', JSON.stringify({ role, organisation, community, phone, fullName }));
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
   };
 
   const register = async ({ email, password, fullName, role, organisation, community, phone }) => {
     isRegistering.current = true;
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const idToken = await cred.user.getIdToken();
-      const profile = await authApi.register({ idToken, fullName, role, organisation, community, phone });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, role, organisation, community, phone },
+        },
+      });
+      if (error) throw error;
+
+      // Insert profile immediately (the DB trigger also fires, but this is faster)
+      await supabase.from('users').insert({
+        id:           data.user.id,
+        email,
+        full_name:    fullName,
+        role,
+        organisation: organisation || '',
+        community:    community    || '',
+        phone:        phone        || '',
+      }).single();
+
+      const profile = await fetchProfile(data.user.id);
+      setSupabaseUser(data.user);
       setDbUser(profile);
       return profile;
     } finally {
@@ -108,36 +145,53 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const enterDemo = (role) => {
-    sessionStorage.setItem('rivers_demo_role', role);
-    setDbUser(DEMO_USERS[role]);
-    setFirebaseUser(null);
-  };
-
-  // Switch to a temporary role view (community_leader only → sponsor)
-  const switchRole = (role) => setActiveRole(role);
-  const resetRole = () => setActiveRole(null);
-  // What the UI should use for routing and nav
-  const effectiveRole = activeRole ?? dbUser?.role;
-
-  const logout = () => {
+  const logout = async () => {
     sessionStorage.removeItem('rivers_demo_role');
     setDbUser(null);
     setActiveRole(null);
-    try { signOut(auth); } catch { /* Firebase may not be configured */ }
+    setSupabaseUser(null);
+    await supabase.auth.signOut();
   };
 
-  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
+  const resetPassword = (email) =>
+    supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
 
   const refreshProfile = async () => {
-    if (!firebaseUser) return;
-    const profile = await authApi.me();
+    if (!supabaseUser) return;
+    const profile = await fetchProfile(supabaseUser.id);
     setDbUser(profile);
     return profile;
   };
 
+  const enterDemo = (role) => {
+    sessionStorage.setItem('rivers_demo_role', role);
+    setDbUser(DEMO_USERS[role]);
+    setSupabaseUser(null);
+  };
+
+  const switchRole = (role) => setActiveRole(role);
+  const resetRole  = ()     => setActiveRole(null);
+  const effectiveRole = activeRole ?? dbUser?.role;
+
   return (
-    <AuthContext.Provider value={{ firebaseUser, user: dbUser, loading, effectiveRole, switchRole, resetRole, login, loginWithGoogle, registerWithGoogle, register, logout, resetPassword, refreshProfile, enterDemo }}>
+    <AuthContext.Provider value={{
+      supabaseUser,
+      user: dbUser,
+      loading,
+      effectiveRole,
+      switchRole,
+      resetRole,
+      login,
+      loginWithGoogle,
+      registerWithGoogle,
+      register,
+      logout,
+      resetPassword,
+      refreshProfile,
+      enterDemo,
+    }}>
       {children}
     </AuthContext.Provider>
   );
