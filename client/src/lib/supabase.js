@@ -13,9 +13,12 @@ const toCamel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 export function deepCamelCase(obj) {
   if (Array.isArray(obj)) return obj.map(deepCamelCase);
   if (obj !== null && typeof obj === 'object') {
-    return Object.fromEntries(
+    const result = Object.fromEntries(
       Object.entries(obj).map(([k, v]) => [toCamel(k), deepCamelCase(v)])
     );
+    // Alias id → _id so legacy page code using ._id keeps working
+    if (result.id !== undefined && result._id === undefined) result._id = result.id;
+    return result;
   }
   return obj;
 }

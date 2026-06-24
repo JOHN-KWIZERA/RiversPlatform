@@ -92,7 +92,7 @@ export const campaignApi = {
 
     let query = supabase
       .from('campaigns')
-      .select('*, leader:leader_id(id, full_name, avatar, community)')
+      .select('*, leader:leader_id(id, full_name, avatar, community)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -101,8 +101,10 @@ export const campaignApi = {
     if (community) query = query.ilike('community', `%${community}%`);
     if (search)    query = query.ilike('title', `%${search}%`);
 
-    const data = await q(query);
-    return Array.isArray(data) ? data.map(normalizeCampaign) : data;
+    const { data, count, error } = await query;
+    if (error) throw error;
+    const campaigns = Array.isArray(data) ? deepCamelCase(data).map(normalizeCampaign) : [];
+    return { campaigns, total: count ?? campaigns.length };
   },
 
   getById: async (id) => {
@@ -229,23 +231,119 @@ export const donationApi = {
 // ── analyticsApi ──────────────────────────────────────────────
 
 export const analyticsApi = {
-  admin:  () => supabase.rpc('get_admin_stats').then(({ data, error }) => { if (error) throw error; return data; }),
-  leader: () => supabase.rpc('get_leader_stats').then(({ data, error }) => { if (error) throw error; return data; }),
-  sponsor:() => supabase.rpc('get_sponsor_stats').then(({ data, error }) => { if (error) throw error; return data; }),
+  admin: async () => {
+    const [
+      { count: total },
+      { count: active },
+      { count: pending },
+      { data: donations },
+      { count: totalUsers },
+      { count: sponsorCount },
+      { data: beneficiaries },
+      { data: campaigns },
+      { data: users },
+    ] = await Promise.all([
+      supabase.from('campaigns').select('*', { count: 'exact', head: true }),
+      supabase.from('campaigns').select('*', { count: 'exact', head: true }).in('status', ['approved', 'active']),
+      supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('status', 'pending_review'),
+      supabase.from('donations').select('amount, donated_at').eq('status', 'completed'),
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'sponsor'),
+      supabase.from('beneficiaries').select('household_size').eq('status', 'active'),
+      supabase.from('campaigns').select('category, status'),
+      supabase.from('users').select('created_at'),
+    ]);
+
+    const totalAmount = (donations || []).reduce((s, d) => s + (d.amount || 0), 0);
+    const familiesSupported = (beneficiaries || []).reduce((s, b) => s + (b.household_size || 1), 0);
+    const completed = (campaigns || []).filter(c => c.status === 'completed').length;
+    const successRate = total ? Math.round((completed / total) * 100) : 0;
+
+    // Monthly donations (last 6 months)
+    const donationsByMonth = {};
+    (donations || []).forEach(d => {
+      const dt = new Date(d.donated_at);
+      const key = `${dt.getFullYear()}-${dt.getMonth() + 1}`;
+      donationsByMonth[key] = (donationsByMonth[key] || 0) + d.amount;
+    });
+    const monthlyDonations = Object.entries(donationsByMonth).map(([k, total]) => {
+      const [year, month] = k.split('-').map(Number);
+      return { _id: { year, month }, total };
+    }).sort((a, b) => a._id.year !== b._id.year ? a._id.year - b._id.year : a._id.month - b._id.month);
+
+    // Campaign distribution
+    const catMap = {}, statusMap = {};
+    (campaigns || []).forEach(c => {
+      catMap[c.category]  = (catMap[c.category]  || 0) + 1;
+      statusMap[c.status] = (statusMap[c.status] || 0) + 1;
+    });
+
+    // Monthly user registrations
+    const usersByMonth = {};
+    (users || []).forEach(u => {
+      const dt = new Date(u.created_at);
+      const key = `${dt.getFullYear()}-${dt.getMonth() + 1}`;
+      usersByMonth[key] = (usersByMonth[key] || 0) + 1;
+    });
+    const monthlyUsers = Object.entries(usersByMonth).map(([k, count]) => {
+      const [year, month] = k.split('-').map(Number);
+      return { _id: { year, month }, count };
+    }).sort((a, b) => a._id.year !== b._id.year ? a._id.year - b._id.year : a._id.month - b._id.month);
+
+    return {
+      campaigns:  { total: total ?? 0, active: active ?? 0, pending: pending ?? 0, successRate },
+      donations:  { totalAmount },
+      users:      { total: totalUsers ?? 0, activeSponsorCount: sponsorCount ?? 0 },
+      familiesSupported,
+      charts: {
+        monthlyDonations,
+        campaignsByCategory: Object.entries(catMap).map(([name, count]) => ({ name, count })),
+        campaignsByStatus:   Object.entries(statusMap).map(([status, count]) => ({ status, count })),
+        monthlyUsers,
+      },
+    };
+  },
+
+  leader: async () => {
+    const id = await uid();
+    const [
+      { data: campaigns },
+      { data: donations },
+    ] = await Promise.all([
+      supabase.from('campaigns').select('id, title, status, raised_amount, target_amount, donor_count, beneficiary_count').eq('leader_id', id),
+      supabase.from('donations').select('amount, donated_at, campaign_id').eq('status', 'completed')
+        .in('campaign_id', (await supabase.from('campaigns').select('id').eq('leader_id', id)).data?.map(c => c.id) || []),
+    ]);
+    const totalRaised = (campaigns || []).reduce((s, c) => s + (c.raised_amount || 0), 0);
+    const totalDonors = (campaigns || []).reduce((s, c) => s + (c.donor_count || 0), 0);
+    return { campaigns: deepCamelCase(campaigns || []), totalRaised, totalDonors, donations: deepCamelCase(donations || []) };
+  },
+
+  sponsor: async () => {
+    const id = await uid();
+    const { data: donations } = await supabase.from('donations')
+      .select('amount, donated_at, status, campaign:campaign_id(id, title, cover_image, category)')
+      .eq('sponsor_id', id).order('donated_at', { ascending: false });
+    const completed = (donations || []).filter(d => d.status === 'completed');
+    const totalDonated = completed.reduce((s, d) => s + (d.amount || 0), 0);
+    return { donations: deepCamelCase(donations || []).map(normalizeDonation), totalDonated, campaignsSupported: new Set(completed.map(d => d.campaign_id)).size };
+  },
 };
 
 // ── userApi ───────────────────────────────────────────────────
 
 export const userApi = {
   getAll: async (params = {}) => {
-    const { page = 1, limit = 20, role, search } = params;
+    const { page = 1, limit = 100, role, search } = params;
     const { from, to } = range(page, limit);
 
     let query = supabase.from('users').select('*').order('created_at', { ascending: false }).range(from, to);
     if (role)   query = query.eq('role', role);
     if (search) query = query.ilike('full_name', `%${search}%`);
 
-    return q(query);
+    const data = await q(query);
+    const users = Array.isArray(data) ? data : [];
+    return { users };
   },
 
   verify: async (id, isVerified) =>
@@ -338,16 +436,18 @@ export const opportunityApi = {
 
     let query = supabase
       .from('opportunities')
-      .select('*, createdByUser:created_by(id, full_name, avatar)')
+      .select('*, createdByUser:created_by(id, full_name, avatar)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    if (status)    query = query.eq('status', status);
+    if (status && status !== 'all') query = query.eq('status', status);
     if (community) query = query.ilike('community', `%${community}%`);
     if (search)    query = query.ilike('title', `%${search}%`);
 
-    const data = await q(query);
-    return Array.isArray(data) ? data : [];
+    const { data, count, error } = await query;
+    if (error) throw error;
+    const opportunities = Array.isArray(data) ? deepCamelCase(data) : [];
+    return { opportunities, total: count ?? opportunities.length };
   },
 
   getById: async (id) =>

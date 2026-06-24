@@ -83,7 +83,7 @@ export default function CreateCampaign() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-2xl">
+    <div className="flex flex-col gap-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

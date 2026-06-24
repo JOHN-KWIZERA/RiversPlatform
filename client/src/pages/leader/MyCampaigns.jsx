@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Eye, MapPin, Globe } from 'lucide-react';
+import { Plus, Edit2, Eye, MapPin, Globe, Megaphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
@@ -37,6 +37,14 @@ export default function MyCampaigns() {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Spinner size={28} className="text-brand-500" />
+        </div>
+      ) : campaigns.length === 0 ? (
+        <div className="card p-12 text-center">
+          <Megaphone size={36} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 mb-4">No campaigns yet. Create your first one to start raising funds for your community.</p>
+          <Button variant="primary" leftIcon={<Plus size={14} />} onClick={() => navigate('/dashboard/campaigns/new')}>
+            Create first campaign
+          </Button>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
