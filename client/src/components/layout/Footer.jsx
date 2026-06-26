@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Mail } from 'lucide-react';
+import RiversMark from '../ui/RiversMark';
 
 export default function Footer() {
   const { t } = useTranslation();
@@ -12,9 +13,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center">
-                <span className="text-white text-sm font-black">R</span>
-              </div>
+              <RiversMark size={36} />
               <span className="font-black text-white text-lg tracking-tight">RIVERS</span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">{t('footer.tagline')}</p>

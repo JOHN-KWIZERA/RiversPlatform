@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
-import { ArrowLeft, MapPin, Calendar, Users, AlertTriangle, Eye } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, AlertTriangle, Eye, ToggleLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input, { Select } from '../../components/ui/Input';
@@ -9,8 +9,62 @@ import Modal from '../../components/ui/Modal';
 import RichTextEditor from '../../components/ui/RichTextEditor';
 import Spinner from '../../components/ui/Spinner';
 import { opportunityApi } from '../../lib/api';
+import { cn } from '../../lib/utils';
 
 const stripHtml = (html) => html?.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim() ?? '';
+
+// ─── Application field config ──────────────────────────────────────────────────
+
+export const DEFAULT_FIELDS = {
+  phone:            'required',
+  linkedin:         'hidden',
+  languages:        'hidden',
+  cv:               'hidden',
+  idDocument:       'hidden',
+  coverLetter:      'required',
+  experience:       'optional',
+  availableFrom:    'hidden',
+  hoursPerWeek:     'hidden',
+  emergencyContact: 'hidden',
+};
+
+const FIELD_CONFIG = [
+  {
+    section: 'Personal',
+    fields: [
+      { key: 'phone',    label: 'Phone Number',          description: 'Volunteer contact number' },
+      { key: 'linkedin', label: 'LinkedIn Profile',      description: 'Professional profile link' },
+      { key: 'languages',label: 'Languages Spoken',      description: 'Kinyarwanda, English, French, Swahili' },
+    ],
+  },
+  {
+    section: 'Documents',
+    fields: [
+      { key: 'cv',         label: 'CV / Resume',            description: 'PDF or Word document upload' },
+      { key: 'idDocument', label: 'National ID / Passport', description: 'Identity document upload' },
+    ],
+  },
+  {
+    section: 'Application',
+    fields: [
+      { key: 'coverLetter',   label: 'Cover Letter',        description: 'Why they want to volunteer' },
+      { key: 'experience',    label: 'Skills & Experience', description: 'Relevant background & past work' },
+      { key: 'availableFrom', label: 'Available From',      description: 'When can they start?' },
+      { key: 'hoursPerWeek',  label: 'Hours Per Week',      description: 'Weekly commitment hours' },
+    ],
+  },
+  {
+    section: 'Emergency',
+    fields: [
+      { key: 'emergencyContact', label: 'Emergency Contact', description: 'Only needed for in-person activities' },
+    ],
+  },
+];
+
+const STEP_LABELS = ['Basic Info', 'Logistics', 'Application Form', 'Review & Submit'];
+const VALUE_LABELS = { required: 'Required', optional: 'Optional', hidden: 'Hidden' };
+
+// ─── Preview modal ─────────────────────────────────────────────────────────────
 
 function OpportunityPreviewModal({ open, onClose, data }) {
   const skills = data.skills ? data.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -49,7 +103,7 @@ function OpportunityPreviewModal({ open, onClose, data }) {
           </div>
         )}
         <div className="border-t pt-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-500 mb-2">Description</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Description</p>
           {data.description && stripHtml(data.description).length > 0 ? (
             <div className="prose-content text-gray-700" dangerouslySetInnerHTML={{ __html: data.description }} />
           ) : (
@@ -61,6 +115,42 @@ function OpportunityPreviewModal({ open, onClose, data }) {
   );
 }
 
+// ─── Field toggle row ──────────────────────────────────────────────────────────
+
+function FieldToggleRow({ fieldKey, label, description, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+      <div className="min-w-0 mr-4">
+        <p className="text-sm font-medium text-gray-900">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+      </div>
+      <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0 text-[11px] font-semibold">
+        {['required', 'optional', 'hidden'].map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(fieldKey, v)}
+            className={cn(
+              'px-3 py-1.5 capitalize transition-colors border-r border-gray-200 last:border-0',
+              value === v
+                ? v === 'required'
+                  ? 'bg-gray-900 text-white'
+                  : v === 'optional'
+                  ? 'bg-gray-100 text-gray-700'
+                  : 'bg-white text-gray-400'
+                : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+            )}
+          >
+            {VALUE_LABELS[v]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export default function OpportunityFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -70,6 +160,7 @@ export default function OpportunityFormPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
   const [showPreview, setShowPreview] = useState(false);
+  const [appFields, setAppFields] = useState({ ...DEFAULT_FIELDS });
 
   const { register, handleSubmit, watch, trigger, reset, control, formState: { errors } } = useForm({
     defaultValues: { slots: 10, status: 'open' },
@@ -92,6 +183,9 @@ export default function OpportunityFormPage() {
           slots: opp.slots,
           status: opp.status,
         });
+        if (opp.applicationFields && Object.keys(opp.applicationFields).length > 0) {
+          setAppFields({ ...DEFAULT_FIELDS, ...opp.applicationFields });
+        }
       })
       .catch(() => {
         toast.error('Opportunity not found.');
@@ -100,6 +194,8 @@ export default function OpportunityFormPage() {
       .finally(() => setFetching(false));
   }, [id, isEdit, reset, navigate]);
 
+  const setField = (key, value) => setAppFields(prev => ({ ...prev, [key]: value }));
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
@@ -107,6 +203,7 @@ export default function OpportunityFormPage() {
         ...data,
         slots: Number(data.slots),
         skills: data.skills ? data.skills.split(',').map(s => s.trim()).filter(Boolean) : [],
+        applicationFields: appFields,
       };
       if (isEdit) {
         await opportunityApi.update(id, payload);
@@ -132,6 +229,7 @@ export default function OpportunityFormPage() {
   }
 
   const skills = formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const activeFieldCount = Object.values(appFields).filter(v => v !== 'hidden').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -165,17 +263,15 @@ export default function OpportunityFormPage() {
 
       {/* Step indicator */}
       <div className="flex gap-2 items-center">
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
               {s}
             </div>
-            {s < 3 && <div className={`h-px w-8 transition-all ${step > s ? 'bg-brand-500' : 'bg-gray-200'}`} />}
+            {s < 4 && <div className={`h-px w-8 transition-all ${step > s ? 'bg-brand-500' : 'bg-gray-200'}`} />}
           </div>
         ))}
-        <p className="ml-3 text-sm text-gray-500">
-          {step === 1 ? 'Basic Info' : step === 2 ? 'Logistics' : 'Review & Submit'}
-        </p>
+        <p className="ml-3 text-sm text-gray-500">{STEP_LABELS[step - 1]}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="card p-6 flex flex-col gap-5">
@@ -300,39 +396,82 @@ export default function OpportunityFormPage() {
                 }}
                 className="flex-1"
               >
+                Continue →
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Application Form ─────────────────────── */}
+        {step === 3 && (
+          <>
+            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <ToggleLeft size={18} className="text-gray-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Customize the application form</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Name and email are always collected. Choose which additional fields volunteers must fill in.
+                  Keep it short — only ask for what you actually need.
+                </p>
+              </div>
+            </div>
+
+            {FIELD_CONFIG.map(({ section, fields }) => (
+              <div key={section} className="flex flex-col">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{section}</p>
+                <div className="border border-gray-200 rounded-xl px-4 divide-y divide-gray-100">
+                  {fields.map(f => (
+                    <FieldToggleRow
+                      key={f.key}
+                      fieldKey={f.key}
+                      label={f.label}
+                      description={f.description}
+                      value={appFields[f.key] ?? DEFAULT_FIELDS[f.key]}
+                      onChange={setField}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div className="flex gap-3">
+              <Button type="button" variant="secondary" onClick={() => setStep(2)} className="flex-1">
+                ← Back
+              </Button>
+              <Button type="button" onClick={() => setStep(4)} className="flex-1">
                 Review →
               </Button>
             </div>
           </>
         )}
 
-        {/* ── Step 3: Review & Submit ──────────────────────── */}
-        {step === 3 && (
+        {/* ── Step 4: Review & Submit ──────────────────────── */}
+        {step === 4 && (
           <>
-            <div className="bg-brand-50 rounded-xl p-4 flex flex-col gap-3">
-              <h3 className="font-semibold text-[#1a1a2e]">Opportunity Summary</h3>
+            <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-3 border border-gray-200">
+              <h3 className="font-semibold text-gray-900">Opportunity Summary</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <p className="text-xs text-gray-500">Title</p>
+                  <p className="text-xs text-gray-400">Title</p>
                   <p className="font-medium">{formData.title}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Community</p>
+                  <p className="text-xs text-gray-400">Community</p>
                   <p className="font-medium">{formData.community}{formData.district && `, ${formData.district}`}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Start Date</p>
+                  <p className="text-xs text-gray-400">Start Date</p>
                   <p className="font-medium">{formData.startDate || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Slots / Status</p>
+                  <p className="text-xs text-gray-400">Slots / Status</p>
                   <p className="font-medium">{formData.slots} · {formData.status}</p>
                 </div>
               </div>
 
               {skills.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1.5">Skills</p>
+                  <p className="text-xs text-gray-400 mb-1.5">Skills</p>
                   <div className="flex flex-wrap gap-1.5">
                     {skills.map(s => (
                       <span key={s} className="px-2 py-0.5 bg-white text-gray-600 rounded-sm text-xs border">{s}</span>
@@ -343,13 +482,40 @@ export default function OpportunityFormPage() {
 
               {formData.description && stripHtml(formData.description).length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-1.5">Description preview</p>
+                  <p className="text-xs text-gray-400 mb-1.5">Description preview</p>
                   <div
                     className="prose-content text-gray-700 text-xs bg-white rounded-md p-2.5 border max-h-28 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: formData.description }}
                   />
                 </div>
               )}
+            </div>
+
+            {/* Application form summary */}
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <p className="text-xs font-semibold text-gray-700 mb-2">
+                Application form — {activeFieldCount} active field{activeFieldCount !== 1 ? 's' : ''}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 bg-gray-900 text-white rounded text-[11px] font-medium">Name</span>
+                <span className="px-2 py-0.5 bg-gray-900 text-white rounded text-[11px] font-medium">Email</span>
+                {FIELD_CONFIG.flatMap(g => g.fields).map(f => {
+                  const v = appFields[f.key];
+                  if (v === 'hidden') return null;
+                  return (
+                    <span
+                      key={f.key}
+                      className={cn(
+                        'px-2 py-0.5 rounded text-[11px] font-medium',
+                        v === 'required' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 border border-gray-200'
+                      )}
+                    >
+                      {f.label}{v === 'optional' && ' *'}
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-2">Dark = required · Light = optional</p>
             </div>
 
             {isEdit && (
@@ -360,7 +526,7 @@ export default function OpportunityFormPage() {
             )}
 
             <div className="flex gap-3">
-              <Button type="button" variant="secondary" onClick={() => setStep(2)} className="flex-1">
+              <Button type="button" variant="secondary" onClick={() => setStep(3)} className="flex-1">
                 ← Back
               </Button>
               <Button type="submit" loading={loading} className="flex-1">

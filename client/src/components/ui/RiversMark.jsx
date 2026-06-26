@@ -1,0 +1,16 @@
+export default function RiversMark({ size = 32, className = '' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <rect width="32" height="32" rx="8" fill="#001E2B" />
+      <path d="M 3 11 Q 9.5 5 16 11 Q 22.5 17 29 11" stroke="#00ED64" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 3 20 Q 9.5 14 16 20 Q 22.5 26 29 20" stroke="#00ED64" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}

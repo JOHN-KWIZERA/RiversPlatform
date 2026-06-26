@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Mail, Lock, User, Phone, Building2, MapPin, Users, Heart, Handshake, Home } from 'lucide-react';
+import RiversMark from '../../components/ui/RiversMark';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -74,9 +75,7 @@ export default function Signup() {
       {/* Top bar */}
       <header className="bg-[#001E2B] h-14 flex items-center px-6 sm:px-10 justify-between flex-shrink-0">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-md bg-brand-500 flex items-center justify-center">
-            <span className="text-white text-xs font-black">R</span>
-          </div>
+          <RiversMark size={32} />
           <span className="font-black text-white tracking-tight">RIVERS</span>
         </Link>
         <p className="text-sm text-[#889397]">

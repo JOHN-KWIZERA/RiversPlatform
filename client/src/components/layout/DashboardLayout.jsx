@@ -1,20 +1,39 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell, Menu, Globe2, CheckCircle2, Megaphone, Heart, Info, Users, Trash2, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Bell, Menu, Globe2, CheckCircle2, XCircle, Megaphone, Heart, Info, Users, Trash2, Settings, LogOut, ChevronDown, UserCog, ShieldCheck, Star, Handshake, User } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import { notificationApi } from '../../lib/api';
 import { cn, timeAgo } from '../../lib/utils';
 
+const ROLE_LABELS = {
+  admin:            'Admin',
+  community_leader: 'Community Leader',
+  sponsor:          'Sponsor',
+  volunteer:        'Volunteer',
+  beneficiary:      'Beneficiary',
+};
+
+const ROLE_COLORS = {
+  admin:            { dot: 'bg-gray-800',    active: 'text-gray-900 bg-gray-100' },
+  community_leader: { dot: 'bg-brand-500',   active: 'text-brand-600 bg-brand-50' },
+  sponsor:          { dot: 'bg-purple-400',  active: 'text-purple-600 bg-purple-50' },
+  volunteer:        { dot: 'bg-blue-400',    active: 'text-blue-600 bg-blue-50' },
+  beneficiary:      { dot: 'bg-amber-400',   active: 'text-amber-600 bg-amber-50' },
+  default:          { dot: 'bg-gray-400',    active: 'text-gray-700 bg-gray-50' },
+};
+
 const TYPE_ICON = {
-  campaign_approved:  { Icon: CheckCircle2, color: 'text-forest-600 bg-forest-50' },
-  campaign_rejected:  { Icon: Megaphone,    color: 'text-red-500 bg-red-50' },
-  donation_received:  { Icon: Heart,        color: 'text-brand-500 bg-brand-50' },
-  campaign_milestone: { Icon: CheckCircle2, color: 'text-amber-600 bg-amber-50' },
-  campaign_created:   { Icon: Megaphone,    color: 'text-brand-500 bg-brand-50' },
-  info:               { Icon: Info,         color: 'text-gray-500 bg-gray-100' },
+  campaign_approved:    { Icon: CheckCircle2, color: 'text-forest-600 bg-forest-50' },
+  campaign_rejected:    { Icon: Megaphone,    color: 'text-red-500 bg-red-50' },
+  donation_received:    { Icon: Heart,        color: 'text-brand-500 bg-brand-50' },
+  campaign_milestone:   { Icon: CheckCircle2, color: 'text-amber-600 bg-amber-50' },
+  campaign_created:     { Icon: Megaphone,    color: 'text-brand-500 bg-brand-50' },
+  info:                 { Icon: Info,         color: 'text-gray-500 bg-gray-100' },
+  application_accepted: { Icon: CheckCircle2, color: 'text-forest-600 bg-forest-50' },
+  application_rejected: { Icon: XCircle,      color: 'text-red-500 bg-red-50' },
 };
 const DEFAULT_ICON = { Icon: Info, color: 'text-gray-500 bg-gray-100' };
 
@@ -23,11 +42,13 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
   const profileRef = useRef(null);
-  const { user, logout } = useAuth();
+  const roleRef = useRef(null);
+  const { user, logout, effectiveRole, switchRole, resetRole } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
@@ -88,6 +109,7 @@ export default function DashboardLayout() {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false);
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (roleRef.current && !roleRef.current.contains(e.target)) setRoleOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -124,6 +146,46 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Role selector — shown for any user with multiple roles */}
+            {(user?.roles?.length ?? 0) > 1 && (
+              <div className="relative" ref={roleRef}>
+                <button
+                  onClick={() => setRoleOpen(!roleOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <UserCog size={13} className="text-gray-400" />
+                  {ROLE_LABELS[effectiveRole] ?? effectiveRole}
+                  <ChevronDown size={11} className={cn('text-gray-400 transition-transform ml-0.5', roleOpen && 'rotate-180')} />
+                </button>
+
+                {roleOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-lg shadow-atlas z-50 animate-scale-in overflow-hidden py-1">
+                    <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Active role
+                    </p>
+                    {user.roles.map(r => {
+                      const isActive = effectiveRole === r;
+                      const { dot, active } = ROLE_COLORS[r] ?? ROLE_COLORS.default;
+                      return (
+                        <button
+                          key={r}
+                          onClick={() => { r === user.role ? resetRole() : switchRole(r); setRoleOpen(false); }}
+                          className={cn(
+                            'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
+                            isActive ? `${active} font-semibold` : 'text-gray-700 hover:bg-gray-50',
+                          )}
+                        >
+                          <span className={cn('w-2 h-2 rounded-full flex-shrink-0', dot)} />
+                          {ROLE_LABELS[r] ?? r}
+                          {isActive && <CheckCircle2 size={12} className="ml-auto opacity-70" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={toggleLang}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
@@ -151,7 +213,7 @@ export default function DashboardLayout() {
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                     <h3 className="text-sm font-bold text-[#001E2B]">Notifications</h3>
                     {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="text-xs text-brand-600 hover:underline font-medium">
+                      <button onClick={markAllRead} className="text-xs text-gray-500 hover:text-gray-800 hover:underline font-medium">
                         Mark all read
                       </button>
                     )}
@@ -169,7 +231,7 @@ export default function DashboardLayout() {
                         <div
                           key={n._id}
                           onClick={() => handleNotifClick(n)}
-                          className={cn('group flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer', !n.read && 'bg-brand-50/40')}
+                          className={cn('group flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer', !n.read && 'bg-gray-50')}
                         >
                           <div className={cn('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5', color)}>
                             <Icon size={15} />
@@ -180,7 +242,7 @@ export default function DashboardLayout() {
                             <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
                           </div>
                           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />}
+                            {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />}
                             <button
                               onClick={(e) => deleteNotif(e, n._id)}
                               className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-400 hover:text-red-500 transition-all"
@@ -194,7 +256,7 @@ export default function DashboardLayout() {
                   </div>
 
                   <div className="px-4 py-2.5 border-t border-gray-100 text-center">
-                    <button className="text-xs text-brand-600 hover:underline font-medium" onClick={() => setNotifOpen(false)}>
+                    <button className="text-xs text-gray-500 hover:text-gray-800 hover:underline font-medium" onClick={() => setNotifOpen(false)}>
                       Close
                     </button>
                   </div>

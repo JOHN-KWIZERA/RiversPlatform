@@ -235,6 +235,18 @@ export const donationApi = {
     );
     return Array.isArray(data) ? data.map(normalizeDonation) : [];
   },
+
+  getMyForCampaign: async (campaignId) => {
+    const id = await uid();
+    const { data, error } = await supabase.from('donations')
+      .select('*')
+      .eq('sponsor_id', id)
+      .eq('campaign_id', campaignId)
+      .eq('status', 'completed')
+      .order('donated_at', { ascending: false });
+    if (error) return null;
+    return data?.length ? deepCamelCase(data[0]) : null;
+  },
 };
 
 // ── analyticsApi ──────────────────────────────────────────────
@@ -361,6 +373,25 @@ export const userApi = {
         .update({ is_verified: isVerified, updated_at: new Date().toISOString() })
         .eq('id', id).select().single()
     ),
+
+  changeRole: async (id, role) =>
+    qOne(
+      supabase.from('users')
+        .update({ role, roles: [role], updated_at: new Date().toISOString() })
+        .eq('id', id).select().single()
+    ),
+
+  suspend: async (id, isSuspended) =>
+    qOne(
+      supabase.from('users')
+        .update({ is_suspended: isSuspended, updated_at: new Date().toISOString() })
+        .eq('id', id).select().single()
+    ),
+
+  delete: async (id) => {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
 
 // ── beneficiaryApi ────────────────────────────────────────────
@@ -480,8 +511,9 @@ export const opportunityApi = {
         skills:      data.skills      || [],
         start_date:  data.startDate,
         end_date:    data.endDate,
-        slots:       data.slots       || 10,
-        status:      data.status      || 'open',
+        slots:              data.slots             || 10,
+        status:             data.status            || 'open',
+        application_fields: data.applicationFields || {},
       }).select().single()
     );
   },
@@ -492,6 +524,7 @@ export const opportunityApi = {
       title: 'title', description: 'description', community: 'community',
       district: 'district', skills: 'skills', startDate: 'start_date',
       endDate: 'end_date', slots: 'slots', status: 'status', campaignId: 'campaign_id',
+      applicationFields: 'application_fields',
     };
     Object.entries(data).forEach(([k, v]) => { snake[map[k] ?? k] = v; });
     return qOne(
@@ -540,12 +573,32 @@ export const opportunityApi = {
     return Array.isArray(data) ? data.map(normalizeApplication) : [];
   },
 
-  updateApplicationStatus: async (opportunityId, appId, status) =>
-    qOne(
+  getApplications: async (opportunityId) => {
+    const data = await q(
+      supabase.from('volunteer_applications')
+        .select('*, applicant:user_id(id, full_name, email, avatar, community)')
+        .eq('opportunity_id', opportunityId)
+        .order('applied_at', { ascending: false })
+    );
+    return Array.isArray(data) ? deepCamelCase(data) : [];
+  },
+
+  updateApplicationStatus: async (opportunityId, appId, status) => {
+    const result = await qOne(
       supabase.from('volunteer_applications')
         .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', appId).select().single()
-    ),
+        .eq('id', appId).select('*, applicant:user_id(id)').single()
+    );
+    // Fire email best-effort — don't let it block or break the status update
+    if (status === 'accepted' || status === 'rejected') {
+      supabase.functions
+        .invoke('send-application-email', {
+          body: { applicantId: result?.applicant?.id, opportunityId, status },
+        })
+        .catch(() => {});
+    }
+    return result;
+  },
 };
 
 // ── notificationApi ───────────────────────────────────────────
@@ -553,13 +606,18 @@ export const opportunityApi = {
 export const notificationApi = {
   getAll: async () => {
     const id = await uid();
-    return q(
+    const data = await q(
       supabase.from('notifications')
         .select('*')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(50)
     );
+    const list = Array.isArray(data) ? deepCamelCase(data) : [];
+    return {
+      notifications: list,
+      unreadCount: list.filter(n => !n.read).length,
+    };
   },
 
   markRead: async (ids = []) => {
@@ -584,6 +642,221 @@ export const notificationApi = {
 export const uploadApi = {
   image:    (file, folder = 'general')    => uploadFile(file, folder),
   document: (file, folder = 'documents') => uploadFile(file, folder),
+};
+
+// ── expenditureApi ────────────────────────────────────────────
+
+export const expenditureApi = {
+  getByCampaign: async (campaignId) => {
+    const data = await q(
+      supabase.from('expenditures')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('date', { ascending: false })
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
+  create: async (campaignId, data) => {
+    const id = await uid();
+    return qOne(
+      supabase.from('expenditures').insert({
+        campaign_id:      campaignId,
+        recorded_by:      id,
+        amount:           data.amount,
+        description:      data.description,
+        category:         data.category      || 'supplies',
+        date:             data.date,
+        receipt_url:      data.receiptUrl    || '',
+        delivery_note:    data.deliveryNote  || '',
+        beneficiary_count: data.beneficiaryCount || 0,
+      }).select().single()
+    );
+  },
+
+  update: async (id, data) => {
+    const map = {
+      amount: 'amount', description: 'description', category: 'category',
+      date: 'date', receiptUrl: 'receipt_url', deliveryNote: 'delivery_note',
+      beneficiaryCount: 'beneficiary_count',
+    };
+    const snake = {};
+    Object.entries(data).forEach(([k, v]) => { snake[map[k] ?? k] = v; });
+    return qOne(
+      supabase.from('expenditures')
+        .update({ ...snake, updated_at: new Date().toISOString() })
+        .eq('id', id).select().single()
+    );
+  },
+
+  delete: async (id) => {
+    const { error } = await supabase.from('expenditures').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ── beneficiaryRegisterApi ────────────────────────────────────
+// Anonymised register — no real names, public read, leader write
+
+export const beneficiaryRegisterApi = {
+  getByCampaign: async (campaignId) => {
+    const data = await q(
+      supabase.from('beneficiary_register')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('record_id')
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
+  create: async (campaignId, data) => {
+    const id = await uid();
+    return qOne(
+      supabase.from('beneficiary_register').insert({
+        campaign_id:    campaignId,
+        recorded_by:    id,
+        record_id:      data.recordId,
+        age_band:       data.ageBand       || '',
+        grade:          data.grade         || '',
+        kit_type:       data.kitType       || 'full',
+        received_at:    data.receivedAt    || null,
+        expenditure_id: data.expenditureId || null,
+        notes:          data.notes         || '',
+      }).select().single()
+    );
+  },
+
+  update: async (id, data) => {
+    const map = {
+      ageBand: 'age_band', grade: 'grade', kitType: 'kit_type',
+      receivedAt: 'received_at', expenditureId: 'expenditure_id',
+      isVerified: 'is_verified', verifiedAt: 'verified_at',
+      deliveryConfirmed: 'delivery_confirmed', confirmationNote: 'confirmation_note',
+      notes: 'notes',
+    };
+    const snake = {};
+    Object.entries(data).forEach(([k, v]) => { snake[map[k] ?? k] = v; });
+    return qOne(
+      supabase.from('beneficiary_register')
+        .update({ ...snake, updated_at: new Date().toISOString() })
+        .eq('id', id).select().single()
+    );
+  },
+
+  verify: async (id) =>
+    qOne(supabase.from('beneficiary_register').update({
+      is_verified: true,
+      verified_at: new Date().toISOString(),
+      updated_at:  new Date().toISOString(),
+    }).eq('id', id).select().single()),
+
+  confirmDelivery: async (id, note = '') =>
+    qOne(supabase.from('beneficiary_register').update({
+      delivery_confirmed: true,
+      confirmation_note:  note,
+      updated_at:         new Date().toISOString(),
+    }).eq('id', id).select().single()),
+
+  delete: async (id) => {
+    const { error } = await supabase.from('beneficiary_register').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ── disbursementApi ───────────────────────────────────────────
+
+export const disbursementApi = {
+  getByCampaign: async (campaignId) => {
+    const data = await q(
+      supabase.from('disbursement_milestones')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('order_index')
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
+  create: async (campaignId, data) => {
+    const id = await uid();
+    return qOne(
+      supabase.from('disbursement_milestones').insert({
+        campaign_id:   campaignId,
+        created_by:    id,
+        title:         data.title,
+        description:   data.description  || '',
+        target_amount: data.targetAmount,
+        order_index:   data.orderIndex   || 0,
+        due_date:      data.dueDate      || null,
+      }).select().single()
+    );
+  },
+
+  submitProof: async (id, { proofUrl, proofNote }) =>
+    qOne(supabase.from('disbursement_milestones').update({
+      status:             'proof_submitted',
+      proof_url:          proofUrl   || '',
+      proof_note:         proofNote  || '',
+      proof_submitted_at: new Date().toISOString(),
+      updated_at:         new Date().toISOString(),
+    }).eq('id', id).select().single()),
+
+  release: async (id) => {
+    const me = await uid();
+    return qOne(supabase.from('disbursement_milestones').update({
+      status:      'released',
+      released_at: new Date().toISOString(),
+      released_by: me,
+      updated_at:  new Date().toISOString(),
+    }).eq('id', id).select().single());
+  },
+
+  delete: async (id) => {
+    const { error } = await supabase.from('disbursement_milestones').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ── recurringGivingApi ────────────────────────────────────────
+
+export const recurringGivingApi = {
+  getMy: async () => {
+    const id = await uid();
+    const data = await q(
+      supabase.from('recurring_donations')
+        .select('*, campaign:campaign_id(id, title, cover_image, category, status)')
+        .eq('sponsor_id', id)
+        .order('created_at', { ascending: false })
+    );
+    if (!Array.isArray(data)) return [];
+    return data.map(d => {
+      if (d.campaign !== undefined) { d.campaignId = d.campaign; delete d.campaign; }
+      return d;
+    });
+  },
+
+  create: async (campaignId, data) => {
+    const id = await uid();
+    return qOne(
+      supabase.from('recurring_donations').insert({
+        sponsor_id:    id,
+        campaign_id:   campaignId,
+        amount:        data.amount,
+        currency:      data.currency   || 'RWF',
+        frequency:     data.frequency  || 'monthly',
+        status:        'active',
+        next_due_date: data.nextDueDate || null,
+      }).select().single()
+    );
+  },
+
+  pause: async (id) =>
+    qOne(supabase.from('recurring_donations').update({ status: 'paused',    updated_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+  resume: async (id) =>
+    qOne(supabase.from('recurring_donations').update({ status: 'active',    updated_at: new Date().toISOString() }).eq('id', id).select().single()),
+
+  cancel: async (id) =>
+    qOne(supabase.from('recurring_donations').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id).select().single()),
 };
 
 // ── auditApi ──────────────────────────────────────────────────

@@ -59,8 +59,10 @@ export default {
         warm:  '0 4px 24px -4px rgba(0,104,74,0.18)',
         'warm-lg': '0 12px 40px -8px rgba(0,104,74,0.22)',
         card:  '0 1px 4px rgba(0,30,43,0.08), 0 0 0 1px rgba(0,30,43,0.06)',
-        'card-hover': '0 4px 16px rgba(0,30,43,0.12), 0 0 0 1px rgba(0,30,43,0.08)',
+        'card-hover': '0 8px 32px rgba(0,30,43,0.14), 0 0 0 1px rgba(0,30,43,0.09)',
+        'card-lift':  '0 16px 48px rgba(0,30,43,0.18), 0 4px 12px rgba(0,30,43,0.10)',
         atlas: '0 2px 8px rgba(0,30,43,0.14)',
+        'glow-brand': '0 0 24px rgba(0,104,74,0.25)',
       },
       animation: {
         'fade-in':     'fadeIn 0.2s ease-out',

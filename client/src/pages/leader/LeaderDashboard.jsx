@@ -96,7 +96,7 @@ export default function LeaderDashboard() {
                     <Button variant="secondary" size="sm" className="flex-1" leftIcon={<Edit2 size={13} />}
                       onClick={() => navigate(`/dashboard/campaigns/${latest._id}/edit`)}>Edit</Button>
                     <Button size="sm" className="flex-1" leftIcon={<Eye size={13} />}
-                      onClick={() => navigate(`/campaigns/${latest._id}`)}>View</Button>
+                      onClick={() => navigate(`/dashboard/campaigns/${latest._id}`)}>View</Button>
                   </div>
                 </div>
               </div>
@@ -183,9 +183,9 @@ export default function LeaderDashboard() {
                                 <Edit2 size={14} />
                               </button>
                               <button
-                                onClick={() => navigate(`/campaigns/${c._id}`)}
+                                onClick={() => navigate(`/dashboard/campaigns/${c._id}`)}
                                 className="p-1.5 rounded-md text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                                title="View public page"
+                                title="View campaign"
                               >
                                 <Eye size={14} />
                               </button>

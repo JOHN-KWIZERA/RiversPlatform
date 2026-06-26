@@ -1,7 +1,7 @@
 import { cn } from '../../lib/utils';
 
 export default function Progress({ value = 0, className, showLabel = false, size = 'md' }) {
-  const heights = { sm: 'h-1.5', md: 'h-2', lg: 'h-3' };
+  const heights = { sm: 'h-1.5', md: 'h-2.5', lg: 'h-3' };
   const pct = Math.min(Math.max(value, 0), 100);
 
   return (

@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ShieldCheck, ShieldOff, Mail } from 'lucide-react';
+import {
+  Search, ShieldCheck, ShieldOff, Mail, MoreVertical,
+  UserCog, Trash2, Ban, CheckCircle2,
+} from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
-import { userApi } from '../../lib/api';
+import { userApi, auditApi } from '../../lib/api';
 import { cn, formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -16,7 +19,94 @@ const ROLE_COLORS = {
   beneficiary:      'bg-amber-50 text-amber-700',
 };
 
-const ROLES = ['all', 'community_leader', 'sponsor', 'volunteer', 'beneficiary'];
+const ALL_ROLES = ['admin', 'community_leader', 'sponsor', 'volunteer', 'beneficiary'];
+const FILTER_ROLES = ['all', 'community_leader', 'sponsor', 'volunteer', 'beneficiary'];
+
+function ActionMenu({ user, onVerify, onChangeRole, onSuspend, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setRoleOpen(false); } };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative flex items-center justify-end gap-1" ref={ref}>
+      {/* Verify toggle — always visible */}
+      <button
+        onClick={() => onVerify(user)}
+        className={cn(
+          'p-1.5 rounded-md transition-colors',
+          user.isVerified
+            ? 'bg-red-50 text-red-500 hover:bg-red-100'
+            : 'bg-brand-50 text-brand-600 hover:bg-brand-100'
+        )}
+        title={user.isVerified ? 'Unverify' : 'Verify'}
+      >
+        {user.isVerified ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
+      </button>
+
+      {/* More actions dropdown */}
+      <button
+        onClick={() => { setOpen(o => !o); setRoleOpen(false); }}
+        className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+        title="More actions"
+      >
+        <MoreVertical size={14} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
+
+          {/* Change role */}
+          <div className="border-b border-gray-100">
+            <button
+              onClick={() => setRoleOpen(r => !r)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <UserCog size={13} className="text-gray-400" /> Change Role
+            </button>
+            {roleOpen && (
+              <div className="border-t border-gray-100 bg-gray-50">
+                {ALL_ROLES.filter(r => r !== user.role).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => { onChangeRole(user, r); setOpen(false); setRoleOpen(false); }}
+                    className="w-full text-left px-5 py-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-brand-600 transition-colors capitalize"
+                  >
+                    {r.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Suspend / Unsuspend */}
+          <button
+            onClick={() => { onSuspend(user); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors border-b border-gray-100"
+          >
+            {user.isSuspended
+              ? <><CheckCircle2 size={13} className="text-forest-500" /><span className="text-forest-700">Unsuspend</span></>
+              : <><Ban size={13} className="text-amber-500" /><span className="text-amber-700">Suspend</span></>
+            }
+          </button>
+
+          {/* Delete */}
+          <button
+            onClick={() => { onDelete(user); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={13} /> Delete user
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function UserManagement() {
   const { t } = useTranslation();
@@ -24,7 +114,6 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [verifyingId, setVerifyingId] = useState(null);
 
   useEffect(() => {
     userApi.getAll({ limit: 100 })
@@ -41,16 +130,48 @@ export default function UserManagement() {
     return matchRole && matchSearch;
   });
 
-  const toggleVerify = async (user) => {
-    setVerifyingId(user._id);
+  const handleVerify = async (user) => {
     try {
       await userApi.verify(user._id, !user.isVerified);
+      auditApi.log({ action: 'user_verified', targetType: 'user', targetId: user._id, targetLabel: user.fullName, metadata: { verified: !user.isVerified } });
       setUsers(prev => prev.map(u => u._id === user._id ? { ...u, isVerified: !u.isVerified } : u));
       toast.success(`${user.fullName} ${user.isVerified ? 'unverified' : 'verified'}.`);
     } catch {
       toast.error('Failed to update verification.');
-    } finally {
-      setVerifyingId(null);
+    }
+  };
+
+  const handleChangeRole = async (user, newRole) => {
+    try {
+      await userApi.changeRole(user._id, newRole);
+      auditApi.log({ action: 'role_changed', targetType: 'user', targetId: user._id, targetLabel: user.fullName, metadata: { from: user.role, to: newRole } });
+      setUsers(prev => prev.map(u => u._id === user._id ? { ...u, role: newRole } : u));
+      toast.success(`${user.fullName} is now a ${newRole.replace('_', ' ')}.`);
+    } catch {
+      toast.error('Failed to change role.');
+    }
+  };
+
+  const handleSuspend = async (user) => {
+    try {
+      await userApi.suspend(user._id, !user.isSuspended);
+      auditApi.log({ action: 'user_suspended', targetType: 'user', targetId: user._id, targetLabel: user.fullName, metadata: { suspended: !user.isSuspended } });
+      setUsers(prev => prev.map(u => u._id === user._id ? { ...u, isSuspended: !u.isSuspended } : u));
+      toast.success(`${user.fullName} ${user.isSuspended ? 'unsuspended' : 'suspended'}.`);
+    } catch {
+      toast.error('Failed to update suspension.');
+    }
+  };
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`Permanently delete ${user.fullName}? This cannot be undone.`)) return;
+    try {
+      await userApi.delete(user._id);
+      auditApi.log({ action: 'user_deleted', targetType: 'user', targetId: user._id, targetLabel: user.fullName, metadata: { role: user.role } });
+      setUsers(prev => prev.filter(u => u._id !== user._id));
+      toast.success(`${user.fullName} deleted.`);
+    } catch {
+      toast.error('Failed to delete user.');
     }
   };
 
@@ -65,7 +186,7 @@ export default function UserManagement() {
 
       {/* Role filter badges */}
       <div className="flex flex-wrap gap-2">
-        {ROLES.map((r) => (
+        {FILTER_ROLES.map((r) => (
           <button
             key={r}
             onClick={() => setRoleFilter(r)}
@@ -107,13 +228,13 @@ export default function UserManagement() {
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Role</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Community / Org</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Joined</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Verified</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((u) => (
-                  <tr key={u._id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={u._id} className={cn('hover:bg-gray-50 transition-colors', u.isSuspended && 'opacity-50')}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar name={u.fullName} size="sm" />
@@ -137,25 +258,24 @@ export default function UserManagement() {
                       {u.createdAt ? formatDate(u.createdAt) : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      {u.isVerified
-                        ? <span className="badge bg-brand-50 text-brand-700 border border-brand-200"><ShieldCheck size={10} /> Verified</span>
-                        : <span className="badge bg-gray-100 text-gray-500">Unverified</span>
-                      }
+                      <div className="flex flex-col gap-1">
+                        {u.isVerified
+                          ? <span className="badge bg-brand-50 text-brand-700 border border-brand-200 w-fit"><ShieldCheck size={10} /> Verified</span>
+                          : <span className="badge bg-gray-100 text-gray-500 w-fit">Unverified</span>
+                        }
+                        {u.isSuspended && (
+                          <span className="badge bg-amber-50 text-amber-700 border border-amber-200 w-fit"><Ban size={10} /> Suspended</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => toggleVerify(u)}
-                        disabled={verifyingId === u._id}
-                        className={cn(
-                          'p-1.5 rounded-md transition-colors disabled:opacity-50',
-                          u.isVerified
-                            ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                            : 'bg-brand-50 text-brand-600 hover:bg-brand-100'
-                        )}
-                        title={u.isVerified ? 'Unverify' : 'Verify'}
-                      >
-                        {u.isVerified ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
-                      </button>
+                      <ActionMenu
+                        user={u}
+                        onVerify={handleVerify}
+                        onChangeRole={handleChangeRole}
+                        onSuspend={handleSuspend}
+                        onDelete={handleDelete}
+                      />
                     </td>
                   </tr>
                 ))}

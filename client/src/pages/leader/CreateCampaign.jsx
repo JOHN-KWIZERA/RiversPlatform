@@ -8,7 +8,7 @@ import Button from '../../components/ui/Button';
 import Input, { Select } from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import RichTextEditor from '../../components/ui/RichTextEditor';
-import { campaignApi, uploadApi } from '../../lib/api';
+import { campaignApi, uploadApi, auditApi } from '../../lib/api';
 
 const stripHtml = (html) => html?.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim() ?? '';
 
@@ -72,7 +72,8 @@ export default function CreateCampaign() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await campaignApi.create({ ...data, status: 'pending_review' });
+      const created = await campaignApi.create({ ...data, status: 'pending_review' });
+      auditApi.log({ action: 'campaign_created', targetType: 'campaign', targetId: created?._id, targetLabel: data.title, metadata: { category: data.category } });
       toast.success('Campaign submitted for review.');
       navigate('/dashboard/campaigns');
     } catch (err) {

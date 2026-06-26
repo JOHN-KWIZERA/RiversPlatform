@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Eye, MapPin, Globe, Megaphone, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, Edit2, Eye, MapPin, Globe, Megaphone, Archive, ArchiveRestore, Receipt, ClipboardList, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
-import Progress from '../../components/ui/Progress';
 import Spinner from '../../components/ui/Spinner';
 import { campaignApi } from '../../lib/api';
 import { formatCurrency, progressPercent, statusColor } from '../../lib/utils';
@@ -58,17 +57,17 @@ export default function MyCampaigns() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
-        {['active', 'archived'].map((t) => (
+        {['active', 'archived'].map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
-              tab === t
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === tabKey
                 ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            {t === 'archived' ? 'Archived' : 'Active'}
+            {tabKey === 'archived' ? 'Archived' : 'Active'}
           </button>
         ))}
       </div>
@@ -99,43 +98,80 @@ export default function MyCampaigns() {
           {campaigns.map((c) => {
             const pct = progressPercent(c.raisedAmount, c.targetAmount);
             return (
-              <div key={c._id} className="card flex flex-col overflow-hidden">
-                <div className="h-36 bg-brand-50 overflow-hidden relative">
+              <div key={c._id} className="card flex flex-col overflow-hidden group hover:border-gray-300 transition-all duration-200">
+                <div className="h-44 bg-gradient-to-br from-brand-50 to-[#e8f5ef] overflow-hidden relative flex-shrink-0">
                   {c.coverImage ? (
-                    <img src={c.coverImage} alt="" className="w-full h-full object-cover" />
+                    <img src={c.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Globe size={32} className="text-brand-200" />
+                      <Globe size={36} className="text-brand-200" />
                     </div>
                   )}
-                  <div className="absolute top-2 left-2">
+                  {/* Bottom gradient overlay */}
+                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent" />
+                  <div className="absolute top-2.5 left-2.5">
                     <span className={`badge ${statusColor(c.status)}`}>{t(`status.${c.status}`)}</span>
                   </div>
+                  <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 text-[11px] text-white/80 font-medium">
+                    <MapPin size={9} /> {c.community}
+                  </div>
                 </div>
+
                 <div className="p-4 flex flex-col gap-3 flex-1">
-                  <h3 className="font-semibold text-sm text-[#001E2B] line-clamp-2">{c.title}</h3>
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                    <MapPin size={10} /> {c.community}
-                  </div>
+                  <h3 className="font-bold text-sm text-[#001E2B] line-clamp-2">{c.title}</h3>
+
+                  {/* Progress bar */}
                   <div>
-                    <Progress value={pct} size="sm" />
-                    <div className="flex justify-between text-xs mt-1">
-                      <span className="font-semibold text-brand-600">{formatCurrency(c.raisedAmount)}</span>
-                      <span className="text-gray-400">{pct}%</span>
+                    <div className="flex justify-between text-[11px] mb-1.5">
+                      <span className="font-bold text-brand-600">{formatCurrency(c.raisedAmount)}</span>
+                      <span className="text-gray-400 font-semibold">{pct}%</span>
                     </div>
+                    <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background: 'linear-gradient(90deg, #00684A 0%, #00A35C 60%, #00ED64 100%)',
+                        }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">of {formatCurrency(c.targetAmount)} goal</p>
                   </div>
-                  <div className="flex gap-2 mt-auto">
+
+                  {/* Action buttons */}
+                  <div className="flex gap-1.5 mt-auto flex-wrap">
                     {tab === 'active' ? (
                       <>
-                        <Button variant="ghost" size="sm" leftIcon={<Eye size={13} />} className="flex-1" onClick={() => navigate(`/campaigns/${c._id}`)}>
+                        <Button variant="ghost" size="sm" leftIcon={<Eye size={13} />} className="flex-1 min-w-0" onClick={() => navigate(`/dashboard/campaigns/${c._id}`)}>
                           View
                         </Button>
-                        <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} className="flex-1" onClick={() => navigate(`/dashboard/campaigns/${c._id}/edit`)}>
+                        <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} className="flex-1 min-w-0" onClick={() => navigate(`/dashboard/campaigns/${c._id}/edit`)}>
                           Edit
                         </Button>
                         <button
+                          onClick={() => navigate(`/dashboard/campaigns/${c._id}/expenditures`)}
+                          className="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex-shrink-0"
+                          title="Log expenditures"
+                        >
+                          <Receipt size={14} />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/dashboard/campaigns/${c._id}/beneficiaries`)}
+                          className="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex-shrink-0"
+                          title="Beneficiary register"
+                        >
+                          <ClipboardList size={14} />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/dashboard/campaigns/${c._id}/milestones`)}
+                          className="p-2 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex-shrink-0"
+                          title="Disbursement milestones"
+                        >
+                          <Layers size={14} />
+                        </button>
+                        <button
                           onClick={() => handleArchive(c)}
-                          className="p-2 rounded-md text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors flex-shrink-0"
+                          className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
                           title="Archive campaign"
                         >
                           <Archive size={14} />
@@ -152,17 +188,17 @@ export default function MyCampaigns() {
             );
           })}
 
-          {/* Create new card — only on active tab */}
+          {/* Create new — only on active tab */}
           {tab === 'active' && (
             <button
               onClick={() => navigate('/dashboard/campaigns/new')}
-              className="card border-2 border-dashed border-brand-200 flex flex-col items-center justify-center p-8 gap-3 hover:border-brand-400 hover:bg-brand-50/50 transition-all min-h-48 text-center"
+              className="rounded-xl border-2 border-dashed border-brand-200 bg-white flex flex-col items-center justify-center p-8 gap-3 hover:border-brand-400 hover:bg-brand-50/40 transition-all min-h-48 text-center"
             >
-              <div className="w-12 h-12 rounded-md bg-brand-50 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center">
                 <Plus size={24} className="text-brand-500" />
               </div>
               <div>
-                <p className="font-semibold text-brand-700">New Campaign</p>
+                <p className="font-bold text-brand-700">New Campaign</p>
                 <p className="text-xs text-gray-400 mt-0.5">Create a verified community campaign</p>
               </div>
             </button>

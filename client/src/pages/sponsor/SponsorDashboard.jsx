@@ -57,18 +57,18 @@ export default function SponsorDashboard() {
           </div>
 
           {/* Impact summary */}
-          <div className="card p-6 bg-gradient-to-br from-[#001E2B] to-[#023430] text-white border-0">
-            <h3 className="font-bold text-lg mb-1">Your Impact This Year</h3>
-            <p className="text-[#889397] text-sm mb-5">Thank you for supporting communities across Kigali.</p>
-            <div className="grid grid-cols-3 gap-4">
+          <div className="card p-6">
+            <h3 className="font-bold text-gray-900 text-base mb-0.5">Your Impact This Year</h3>
+            <p className="text-gray-400 text-sm mb-5">Thank you for supporting communities across Kigali.</p>
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { label: 'Donated',    value: formatCurrency(analytics?.totalGiven ?? 0) },
                 { label: 'Campaigns',  value: analytics?.campaignsSupported ?? 0 },
                 { label: 'Donations',  value: analytics?.totalDonations ?? 0 },
               ].map(({ label, value }) => (
-                <div key={label} className="bg-white/10 rounded-md p-3 text-center border border-white/[0.07]">
-                  <p className="text-lg font-black">{value}</p>
-                  <p className="text-xs text-[#889397] mt-0.5">{label}</p>
+                <div key={label} className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
+                  <p className="text-lg font-black text-gray-900">{value}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{label}</p>
                 </div>
               ))}
             </div>

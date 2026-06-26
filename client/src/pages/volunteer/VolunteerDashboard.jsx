@@ -54,18 +54,18 @@ export default function VolunteerDashboard() {
           </div>
 
           {/* Certificate progress */}
-          <div className="card p-6 bg-gradient-to-br from-[#001E2B] to-[#023430] text-white border-0 flex items-center gap-5">
-            <div className="w-14 h-14 rounded-md bg-brand-500/20 border border-brand-400/30 flex items-center justify-center flex-shrink-0">
-              <Award size={28} className="text-[#00ED64]" />
+          <div className="card p-6 flex items-center gap-5">
+            <div className="w-14 h-14 rounded-md bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+              <Award size={28} className="text-brand-500" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold">Community Impact Certificate</h3>
-              <p className="text-[#889397] text-sm mt-0.5">Complete 40 volunteer hours to earn your certificate of recognition.</p>
-              <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-brand-400 transition-all duration-700"
+              <h3 className="font-bold text-gray-900">Community Impact Certificate</h3>
+              <p className="text-gray-400 text-sm mt-0.5">Complete 40 volunteer hours to earn your certificate of recognition.</p>
+              <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-full rounded-full bg-brand-500 transition-all duration-700"
                   style={{ width: `${Math.min(100, (accepted.length / 5) * 100)}%` }} />
               </div>
-              <p className="text-xs text-[#889397] mt-1">{accepted.length} of 5 accepted assignments</p>
+              <p className="text-xs text-gray-400 mt-1">{accepted.length} of 5 accepted assignments</p>
             </div>
           </div>
 

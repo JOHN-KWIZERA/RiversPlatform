@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import {
   Search, CheckCircle2, XCircle, Eye, MapPin, Globe,
   ArrowLeft, Clock, Users, Heart, Zap, Calendar, X, Archive, ArchiveRestore,
+  Receipt, ClipboardList, Layers,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Progress from '../../components/ui/Progress';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
-import { campaignApi } from '../../lib/api';
+import { campaignApi, auditApi } from '../../lib/api';
 import {
   formatCurrency, formatDate, statusColor, progressPercent, categoryColor, cn,
 } from '../../lib/utils';
@@ -50,6 +52,7 @@ export default function CampaignApproval() {
     setActionLoading(true);
     try {
       await campaignApi.approve(selected._id, { status: 'active', adminNote: note });
+      auditApi.log({ action: 'campaign_approved', targetType: 'campaign', targetId: selected._id, targetLabel: selected.title, metadata: { note } });
       toast.success(`"${selected.title}" approved.`);
       setCampaigns(prev => prev.map(c => c._id === selected._id ? { ...c, status: 'active' } : c));
       setSelected(prev => ({ ...prev, status: 'active' }));
@@ -66,6 +69,7 @@ export default function CampaignApproval() {
     setActionLoading(true);
     try {
       await campaignApi.approve(selected._id, { status: 'rejected', adminNote: note });
+      auditApi.log({ action: 'campaign_rejected', targetType: 'campaign', targetId: selected._id, targetLabel: selected.title, metadata: { note } });
       toast.success('Campaign rejected.');
       setCampaigns(prev => prev.map(c => c._id === selected._id ? { ...c, status: 'rejected' } : c));
       setSelected(prev => ({ ...prev, status: 'rejected' }));
@@ -265,6 +269,7 @@ export default function CampaignApproval() {
 }
 
 function CampaignDetailOverlay({ campaign: c, tab, note, onNoteChange, onApprove, onReject, onArchive, onUnarchive, onClose, actionLoading, t }) {
+  const navigate = useNavigate();
   const pct = progressPercent(c.raisedAmount, c.targetAmount);
   const daysLeft = c.endDate
     ? Math.max(0, Math.ceil((new Date(c.endDate) - Date.now()) / 86400000))
@@ -493,6 +498,24 @@ function CampaignDetailOverlay({ campaign: c, tab, note, onNoteChange, onApprove
                     </div>
                   </div>
                 )}
+
+                {/* Campaign management links */}
+                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                  <p className="text-xs text-gray-400 mb-1">Campaign Management</p>
+                  {[
+                    { label: 'Expenditure Log',      icon: Receipt,       path: 'expenditures' },
+                    { label: 'Beneficiary Register',  icon: ClipboardList, path: 'beneficiaries' },
+                    { label: 'Disbursement Milestones', icon: Layers,      path: 'milestones' },
+                  ].map(({ label, icon: Icon, path }) => (
+                    <button
+                      key={path}
+                      onClick={() => { onClose(); navigate(`/dashboard/campaigns/${c._id}/${path}`); }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 text-sm text-gray-600 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50 transition-colors text-left"
+                    >
+                      <Icon size={14} className="flex-shrink-0" /> {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

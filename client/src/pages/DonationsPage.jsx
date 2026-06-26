@@ -69,7 +69,7 @@ export default function DonationsPage() {
                   <td className="px-4 py-3">
                     <button
                       className="text-left font-medium text-[#001E2B] hover:text-brand-600 transition-colors flex items-center gap-1 group"
-                      onClick={() => d.campaignId?._id && navigate(`/campaigns/${d.campaignId._id}`)}
+                      onClick={() => d.campaignId?._id && navigate(`/dashboard/campaigns/${d.campaignId._id}`)}
                     >
                       {d.campaignId?.title || 'Campaign'}
                       <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />

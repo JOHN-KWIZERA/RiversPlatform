@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, User, Megaphone, Heart, CheckCircle2, XCircle, LogIn, Clock } from 'lucide-react';
+import { ShieldCheck, User, Megaphone, Heart, CheckCircle2, XCircle, LogIn, Clock, Ban, UserX, UserCog } from 'lucide-react';
 import { auditApi } from '../../lib/api';
 import Spinner from '../../components/ui/Spinner';
 import { timeAgo } from '../../lib/utils';
@@ -16,6 +16,9 @@ const ACTION_META = {
   beneficiary_assistance_added:   { icon: Heart,        color: 'text-forest-500 bg-forest-50',  label: 'Assistance Added' },
   beneficiary_progress_added:     { icon: CheckCircle2, color: 'text-brand-500 bg-brand-50',    label: 'Progress Added' },
   login:                          { icon: LogIn,        color: 'text-gray-500 bg-gray-100',     label: 'Login' },
+  role_changed:                   { icon: UserCog,      color: 'text-blue-500 bg-blue-50',      label: 'Role Changed' },
+  user_suspended:                 { icon: Ban,          color: 'text-amber-600 bg-amber-50',    label: 'User Suspended' },
+  user_deleted:                   { icon: UserX,        color: 'text-red-500 bg-red-50',        label: 'User Deleted' },
 };
 const DEFAULT_META = { icon: Clock, color: 'text-gray-400 bg-gray-100', label: 'Event' };
 
@@ -47,7 +50,7 @@ export default function AuditLogPage() {
 
       {/* Filter */}
       <div className="flex flex-wrap gap-2">
-        {['all', 'campaign_approved', 'campaign_rejected', 'donation_created', 'user_registered'].map((a) => (
+        {['all', 'campaign_created', 'campaign_approved', 'campaign_rejected', 'donation_created', 'user_verified', 'role_changed', 'user_suspended', 'user_deleted'].map((a) => (
           <button
             key={a}
             onClick={() => { setFilter(a); setPage(1); }}

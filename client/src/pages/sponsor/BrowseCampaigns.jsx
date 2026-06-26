@@ -80,6 +80,7 @@ export default function BrowseCampaigns() {
             <CampaignCard
               key={c._id}
               campaign={c}
+              detailBasePath="/dashboard/campaigns"
               onDonate={c.status === 'active' ? setDonateTarget : undefined}
             />
           ))}

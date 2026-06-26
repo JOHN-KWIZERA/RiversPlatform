@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Globe2, Menu, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import RiversMark from '../ui/RiversMark';
 import Button from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
@@ -39,9 +40,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center shadow-warm group-hover:bg-brand-600 transition-colors">
-            <span className="text-white text-sm font-black">R</span>
-          </div>
+          <RiversMark size={36} />
           <span className={cn('font-black text-lg tracking-tight transition-colors', isLight ? 'text-[#001E2B]' : 'text-white')}>RIVERS</span>
         </Link>
 

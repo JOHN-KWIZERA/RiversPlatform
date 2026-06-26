@@ -21,7 +21,11 @@ const CampaignsRouter   = lazy(() => import('./pages/CampaignsRouter'));
 const UserManagement    = lazy(() => import('./pages/admin/UserManagement'));
 const LeaderDashboard   = lazy(() => import('./pages/leader/LeaderDashboard'));
 const CreateCampaign    = lazy(() => import('./pages/leader/CreateCampaign'));
-const EditCampaign      = lazy(() => import('./pages/leader/EditCampaign'));
+const EditCampaign           = lazy(() => import('./pages/leader/EditCampaign'));
+const CampaignExpenditures   = lazy(() => import('./pages/leader/CampaignExpenditures'));
+const BeneficiaryRegister    = lazy(() => import('./pages/leader/BeneficiaryRegister'));
+const DisbursementMilestones = lazy(() => import('./pages/leader/DisbursementMilestones'));
+const RecurringGiving        = lazy(() => import('./pages/sponsor/RecurringGiving'));
 const SponsorDashboard  = lazy(() => import('./pages/sponsor/SponsorDashboard'));
 const BrowseCampaigns   = lazy(() => import('./pages/sponsor/BrowseCampaigns'));
 const VolunteerDashboard      = lazy(() => import('./pages/volunteer/VolunteerDashboard'));
@@ -34,6 +38,7 @@ const AuditLogPage           = lazy(() => import('./pages/admin/AuditLog'));
 const OpportunityManagement  = lazy(() => import('./pages/admin/OpportunityManagement'));
 const OpportunityDetail      = lazy(() => import('./pages/opportunities/OpportunityDetail'));
 const OpportunityApply       = lazy(() => import('./pages/opportunities/OpportunityApply'));
+const OpportunityApplicants  = lazy(() => import('./pages/opportunities/OpportunityApplicants'));
 const OpportunityFormPage    = lazy(() => import('./pages/opportunities/OpportunityFormPage'));
 
 const PageLoader = () => (
@@ -114,9 +119,14 @@ export default function App() {
             <Route index element={<DashboardRouter />} />
 
             {/* Campaigns — role-aware */}
-            <Route path="campaigns"          element={<CampaignsRouter />} />
-            <Route path="campaigns/new"      element={<CreateCampaign />} />
-            <Route path="campaigns/:id/edit" element={<EditCampaign />} />
+            <Route path="campaigns"                      element={<CampaignsRouter />} />
+            <Route path="campaigns/new"                  element={<CreateCampaign />} />
+            <Route path="campaigns/:id"                  element={<CampaignDetail standalone={false} />} />
+            <Route path="campaigns/:id/edit"             element={<EditCampaign />} />
+            <Route path="campaigns/:id/expenditures"     element={<CampaignExpenditures />} />
+            <Route path="campaigns/:id/beneficiaries"    element={<BeneficiaryRegister />} />
+            <Route path="campaigns/:id/milestones"       element={<DisbursementMilestones />} />
+            <Route path="recurring"                     element={<RecurringGiving />} />
 
             {/* Admin */}
             <Route path="users" element={<UserManagement />} />
@@ -141,7 +151,8 @@ export default function App() {
             <Route path="opportunities/new"        element={<OpportunityFormPage />} />
             <Route path="opportunities/:id"        element={<OpportunityDetail />} />
             <Route path="opportunities/:id/edit"   element={<OpportunityFormPage />} />
-            <Route path="opportunities/:id/apply"  element={<OpportunityApply />} />
+            <Route path="opportunities/:id/apply"       element={<OpportunityApply />} />
+            <Route path="opportunities/:id/applicants"  element={<OpportunityApplicants />} />
           </Route>
 
           {/* 404 */}

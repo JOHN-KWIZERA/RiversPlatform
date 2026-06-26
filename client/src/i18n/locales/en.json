@@ -5,7 +5,8 @@
     "about": "About",
     "login": "Login",
     "signup": "Get Started",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "recurring": "Recurring Giving"
   },
   "hero": {
     "badge": "Trusted by communities across Kigali",

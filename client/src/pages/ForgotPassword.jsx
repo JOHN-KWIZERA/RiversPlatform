@@ -5,6 +5,7 @@ import { Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import RiversMark from '../components/ui/RiversMark';
 import { useAuth } from '../context/AuthContext';
 
 export default function ForgotPassword() {
@@ -30,9 +31,7 @@ export default function ForgotPassword() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-md bg-brand-500 flex items-center justify-center">
-            <span className="text-white text-sm font-black">R</span>
-          </div>
+          <RiversMark size={36} />
           <span className="font-black text-[#001E2B] text-lg tracking-tight">RIVERS</span>
         </Link>
 

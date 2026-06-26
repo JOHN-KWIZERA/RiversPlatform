@@ -9,7 +9,7 @@ import Input, { Textarea } from '../ui/Input';
 import Progress from '../ui/Progress';
 import MoMoPaymentFlow from './MoMoPaymentFlow';
 import { formatCurrency, progressPercent } from '../../lib/utils';
-import { donationApi } from '../../lib/api';
+import { donationApi, auditApi } from '../../lib/api';
 
 const AMOUNTS = [10000, 25000, 50000, 100000, 250000];
 const PAYMENT_METHODS = [
@@ -44,6 +44,7 @@ export default function DonationModal({ open, onClose, campaign }) {
     setLoading(true);
     try {
       await donationApi.create({ campaignId: campaign._id, ...data, amount: amt });
+      auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: amt, method: data.paymentMethod } });
       toast.success('Thank you for your donation!');
       reset();
       setSelectedAmount(null);
@@ -58,6 +59,7 @@ export default function DonationModal({ open, onClose, campaign }) {
   const handleMoMoSuccess = async (paymentRef) => {
     try {
       await donationApi.create({ campaignId: campaign._id, ...pendingData, paymentRef });
+      auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: pendingData.amount, method: 'mobile_money', paymentRef } });
       // Stay on success screen for 2s then close
       setTimeout(() => { setShowMoMo(false); setPendingData(null); reset(); setSelectedAmount(null); onClose(); }, 3000);
     } catch (err) {

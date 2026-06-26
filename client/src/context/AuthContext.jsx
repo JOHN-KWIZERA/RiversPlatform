@@ -2,11 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, deepCamelCase } from '../lib/supabase';
 
 const DEMO_USERS = {
-  admin:            { id: 'demo-admin',       fullName: 'Demo Admin',         email: 'admin@rivers.demo',       role: 'admin',            isVerified: true,  community: '', organisation: '' },
-  community_leader: { id: 'demo-leader',      fullName: 'Marie Uwimana',      email: 'leader@rivers.demo',      role: 'community_leader', isVerified: true,  community: 'Bumbogo, Gasabo', organisation: '' },
-  sponsor:          { id: 'demo-sponsor',     fullName: 'Amahoro Foundation', email: 'sponsor@rivers.demo',     role: 'sponsor',          isVerified: true,  community: '', organisation: 'Amahoro Foundation' },
-  volunteer:        { id: 'demo-volunteer',   fullName: 'Diane Mukansanga',   email: 'vol@rivers.demo',         role: 'volunteer',        isVerified: false, community: '', organisation: '' },
-  beneficiary:      { id: 'demo-beneficiary', fullName: 'Solange Iradukunda', email: 'beneficiary@rivers.demo', role: 'beneficiary',      isVerified: false, community: 'Gitega', organisation: '' },
+  admin:            { id: 'demo-admin',       fullName: 'Demo Admin',         email: 'admin@rivers.demo',       role: 'admin',            roles: ['admin'],                         isVerified: true,  community: '', organisation: '' },
+  community_leader: { id: 'demo-leader',      fullName: 'Marie Uwimana',      email: 'leader@rivers.demo',      role: 'community_leader', roles: ['community_leader', 'sponsor'],    isVerified: true,  community: 'Bumbogo, Gasabo', organisation: '' },
+  sponsor:          { id: 'demo-sponsor',     fullName: 'Amahoro Foundation', email: 'sponsor@rivers.demo',     role: 'sponsor',          roles: ['sponsor'],                       isVerified: true,  community: '', organisation: 'Amahoro Foundation' },
+  volunteer:        { id: 'demo-volunteer',   fullName: 'Diane Mukansanga',   email: 'vol@rivers.demo',         role: 'volunteer',        roles: ['volunteer'],                     isVerified: false, community: '', organisation: '' },
+  beneficiary:      { id: 'demo-beneficiary', fullName: 'Solange Iradukunda', email: 'beneficiary@rivers.demo', role: 'beneficiary',      roles: ['beneficiary'],                   isVerified: false, community: 'Gitega', organisation: '' },
 };
 
 const AuthContext = createContext(null);
@@ -77,11 +77,13 @@ export function AuthProvider({ children }) {
     const pending = JSON.parse(localStorage.getItem('rivers_google_signup') || '{}');
     localStorage.removeItem('rivers_google_signup');
 
+    const googleRole = pending.role || 'beneficiary';
     await supabase.from('users').insert({
       id:           user.id,
       email:        user.email,
       full_name:    pending.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-      role:         pending.role         || 'beneficiary',
+      role:         googleRole,
+      roles:        [googleRole],
       organisation: pending.organisation || '',
       community:    pending.community    || '',
       phone:        pending.phone        || '',
@@ -131,6 +133,7 @@ export function AuthProvider({ children }) {
         email,
         full_name:    fullName,
         role,
+        roles:        [role],
         organisation: organisation || '',
         community:    community    || '',
         phone:        phone        || '',

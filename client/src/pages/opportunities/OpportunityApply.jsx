@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
-  ArrowLeft, MapPin, Upload, FileText, User, Phone, Mail, AlertCircle, Clock, CheckCircle2,
+  ArrowLeft, MapPin, Upload, FileText, User, Phone, Mail, Clock, CheckCircle2, Calendar, Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
@@ -10,9 +10,12 @@ import Input, { Textarea } from '../../components/ui/Input';
 import Spinner from '../../components/ui/Spinner';
 import { opportunityApi, uploadApi } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { formatDate } from '../../lib/utils';
+import { formatDate, cn } from '../../lib/utils';
+import { DEFAULT_FIELDS } from './OpportunityFormPage';
 
 const LANGUAGES = ['Kinyarwanda', 'English', 'French', 'Swahili'];
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
 
 function DocUpload({ label, required, hint, accept, folder, onUploaded }) {
   const [uploading, setUploading] = useState(false);
@@ -58,11 +61,11 @@ function DocUpload({ label, required, hint, accept, folder, onUploaded }) {
       </label>
       <div
         onClick={() => !uploading && inputRef.current?.click()}
-        className="border-2 border-dashed border-gray-200 rounded-md p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-brand-300 hover:bg-brand-50/30 transition-all min-h-[90px]"
+        className="border-2 border-dashed border-gray-200 rounded-md p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all min-h-[90px]"
       >
         {uploading ? (
           <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Spinner size={16} className="text-brand-500" /> Uploading…
+            <Spinner size={16} className="text-gray-500" /> Uploading…
           </div>
         ) : url ? (
           <div className="flex items-center gap-2 text-sm">
@@ -86,8 +89,8 @@ function DocUpload({ label, required, hint, accept, folder, onUploaded }) {
 function SectionHeader({ icon: Icon, title, subtitle }) {
   return (
     <div className="flex items-center gap-2 mb-1">
-      <div className="w-7 h-7 rounded-md bg-brand-50 flex items-center justify-center flex-shrink-0">
-        <Icon size={15} className="text-brand-500" />
+      <div className="w-7 h-7 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <Icon size={15} className="text-gray-500" />
       </div>
       <div>
         <h2 className="font-bold text-[#001E2B] text-sm">{title}</h2>
@@ -96,6 +99,8 @@ function SectionHeader({ icon: Icon, title, subtitle }) {
     </div>
   );
 }
+
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export default function OpportunityApply() {
   const { id } = useParams();
@@ -131,16 +136,21 @@ export default function OpportunityApply() {
     );
   };
 
+  // Merge saved field config with defaults
+  const fields = { ...DEFAULT_FIELDS, ...(opp?.applicationFields || {}) };
+  const show = (key) => fields[key] !== 'hidden';
+  const req  = (key) => fields[key] === 'required';
+
   const onSubmit = async (data) => {
-    if (!cvUrl) { toast.error('Please upload your CV / Resume.'); return; }
-    if (!idUrl) { toast.error('Please upload your ID or Passport.'); return; }
+    if (req('cv') && !cvUrl) { toast.error('Please upload your CV / Resume.'); return; }
+    if (req('idDocument') && !idUrl) { toast.error('Please upload your ID or Passport.'); return; }
     setSubmitting(true);
     try {
       await opportunityApi.apply(id, {
         ...data,
-        languages,
-        cvUrl,
-        idDocumentUrl: idUrl,
+        languages: show('languages') ? languages : [],
+        cvUrl: show('cv') ? cvUrl : undefined,
+        idDocumentUrl: show('idDocument') ? idUrl : undefined,
         hoursPerWeek: data.hoursPerWeek ? Number(data.hoursPerWeek) : undefined,
       });
       toast.success('Application submitted! Good luck!');
@@ -157,8 +167,12 @@ export default function OpportunityApply() {
   }
   if (!opp) return null;
 
+  const showDocumentsCard    = show('cv') || show('idDocument');
+  const showApplicationCard  = show('coverLetter') || show('experience') || show('availableFrom') || show('hoursPerWeek');
+  const showEmergencyCard    = show('emergencyContact');
+
   return (
-    <div className="flex flex-col gap-6 max-w-2xl">
+    <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
         <button
@@ -168,24 +182,66 @@ export default function OpportunityApply() {
           <ArrowLeft size={15} /> Back to Opportunity
         </button>
         <h1 className="page-header">Apply — {opp.title}</h1>
-        <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-          <MapPin size={13} className="text-brand-400" />
-          {opp.community}{opp.district && `, ${opp.district}`}
-          {opp.startDate && <> · Starts {formatDate(opp.startDate)}</>}
-        </p>
       </div>
 
-      {/* Notice */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-amber-800">
-        <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-        Fields marked * are required. Your documents are stored securely and only shared with the opportunity organizer.
-      </div>
+      {/* Two-column layout */}
+      <div className="grid grid-cols-[260px,1fr] gap-6 items-start">
 
+        {/* Left: sticky opportunity summary */}
+        <div className="sticky top-6 flex flex-col gap-4">
+          <div className="card p-5 flex flex-col gap-3">
+            <h3 className="font-bold text-gray-900 text-sm leading-snug">{opp.title}</h3>
+            <div className="flex flex-col gap-2 text-xs text-gray-500">
+              <span className="flex items-center gap-2">
+                <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                {opp.community}{opp.district && `, ${opp.district}`}
+              </span>
+              {opp.startDate && (
+                <span className="flex items-center gap-2">
+                  <Calendar size={12} className="text-gray-400 flex-shrink-0" />
+                  Starts {formatDate(opp.startDate)}
+                </span>
+              )}
+              {opp.endDate && (
+                <span className="flex items-center gap-2">
+                  <Clock size={12} className="text-gray-400 flex-shrink-0" />
+                  Ends {formatDate(opp.endDate)}
+                </span>
+              )}
+              {opp.slots && (
+                <span className="flex items-center gap-2">
+                  <Users size={12} className="text-gray-400 flex-shrink-0" />
+                  {opp.slots} slot{opp.slots !== 1 ? 's' : ''} available
+                </span>
+              )}
+            </div>
+
+            {opp.skills?.length > 0 && (
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Skills needed</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {opp.skills.map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px] font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-400 px-1">
+            Fields marked <span className="text-red-400 font-medium">*</span> are required.
+            Your data is stored securely and only shared with the opportunity organizer.
+          </p>
+        </div>
+
+        {/* Right: form */}
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
 
-        {/* Section 1: Personal Information */}
+        {/* Section 1: Personal Information — always shown */}
         <div className="card p-5 flex flex-col gap-4">
           <SectionHeader icon={User} title="Personal Information" />
+
+          {/* Name + Email always collected */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Full Name"
@@ -201,138 +257,187 @@ export default function OpportunityApply() {
               {...register('email', { required: 'Email is required' })}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Phone Number"
-              type="tel"
-              placeholder="+250 7XX XXX XXX"
-              required
-              error={errors.phone?.message}
-              {...register('phone', { required: 'Phone number is required' })}
+
+          {/* Phone + LinkedIn — conditional */}
+          {(show('phone') || show('linkedin')) && (
+            <div className={cn('grid gap-4', show('phone') && show('linkedin') ? 'grid-cols-2' : 'grid-cols-1')}>
+              {show('phone') && (
+                <Input
+                  label="Phone Number"
+                  type="tel"
+                  placeholder="+250 7XX XXX XXX"
+                  required={req('phone')}
+                  error={errors.phone?.message}
+                  {...register('phone', req('phone') ? { required: 'Phone number is required' } : {})}
+                />
+              )}
+              {show('linkedin') && (
+                <Input
+                  label="LinkedIn Profile"
+                  placeholder="linkedin.com/in/your-profile"
+                  hint={req('linkedin') ? undefined : 'Optional'}
+                  required={req('linkedin')}
+                  error={errors.linkedIn?.message}
+                  {...register('linkedIn', req('linkedin') ? { required: 'LinkedIn is required' } : {})}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Languages — conditional */}
+          {show('languages') && (
+            <div>
+              <label className="text-sm font-medium text-[#001E2B] block mb-2">
+                Languages Spoken
+                {req('languages')
+                  ? <span className="text-red-400 ml-0.5">*</span>
+                  : <span className="text-xs text-gray-400 font-normal ml-1">(optional)</span>}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => toggleLanguage(lang)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-sm font-medium transition-all border',
+                      languages.includes(lang)
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 2: Documents — conditional */}
+        {showDocumentsCard && (
+          <div className="card p-5 flex flex-col gap-4">
+            <SectionHeader
+              icon={FileText}
+              title="Documents"
+              subtitle={
+                show('cv') && show('idDocument')
+                  ? req('cv') && req('idDocument') ? 'Both documents are required' : 'Upload requested documents'
+                  : 'Upload the requested document'
+              }
             />
-            <Input
-              label="LinkedIn Profile"
-              placeholder="linkedin.com/in/your-profile"
-              hint="Optional — helps the organizer learn more about you"
-              {...register('linkedIn')}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-[#001E2B] block mb-2">
-              Languages Spoken <span className="text-xs text-gray-400 font-normal">(select all that apply)</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map(lang => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => toggleLanguage(lang)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all border ${
-                    languages.includes(lang)
-                      ? 'bg-brand-500 text-white border-brand-500'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
+            <div className={cn('grid gap-4', show('cv') && show('idDocument') ? 'grid-cols-2' : 'grid-cols-1')}>
+              {show('cv') && (
+                <DocUpload
+                  label="CV / Resume"
+                  required={req('cv')}
+                  hint="PDF, DOC, DOCX — max 5 MB"
+                  accept=".pdf,.doc,.docx"
+                  folder="applications/cv"
+                  onUploaded={setCvUrl}
+                />
+              )}
+              {show('idDocument') && (
+                <DocUpload
+                  label="National ID / Passport"
+                  required={req('idDocument')}
+                  hint="PDF, JPG, PNG — max 5 MB"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  folder="applications/id"
+                  onUploaded={setIdUrl}
+                />
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Section 2: Documents */}
-        <div className="card p-5 flex flex-col gap-4">
-          <SectionHeader
-            icon={FileText}
-            title="Required Documents"
-            subtitle="Both documents are mandatory for all applications"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <DocUpload
-              label="CV / Resume"
-              required
-              hint="PDF, DOC, DOCX — max 5 MB"
-              accept=".pdf,.doc,.docx"
-              folder="applications/cv"
-              onUploaded={setCvUrl}
+        {/* Section 3: Application — conditional */}
+        {showApplicationCard && (
+          <div className="card p-5 flex flex-col gap-4">
+            <SectionHeader
+              icon={Mail}
+              title="Your Application"
+              subtitle="Tell the organizer why you're the right fit"
             />
-            <DocUpload
-              label="National ID / Passport"
-              required
-              hint="PDF, JPG, PNG — max 5 MB"
-              accept=".pdf,.jpg,.jpeg,.png"
-              folder="applications/id"
-              onUploaded={setIdUrl}
-            />
-          </div>
-        </div>
 
-        {/* Section 3: Your Application */}
-        <div className="card p-5 flex flex-col gap-4">
-          <SectionHeader
-            icon={Mail}
-            title="Your Application"
-            subtitle="Tell the organizer why you're the right fit"
-          />
-          <Textarea
-            label="Cover Letter"
-            required
-            placeholder="Introduce yourself and explain why you'd like to volunteer for this opportunity. What motivates you?"
-            rows={5}
-            error={errors.coverLetter?.message}
-            {...register('coverLetter', {
-              required: 'A cover letter is required',
-              minLength: { value: 100, message: 'Please write at least 100 characters' },
-            })}
-          />
-          <Textarea
-            label="Relevant Skills & Experience"
-            required
-            placeholder="Describe your background, previous volunteer work, or professional experience relevant to this opportunity…"
-            rows={4}
-            error={errors.experience?.message}
-            {...register('experience', { required: 'Please describe your relevant experience' })}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Available From"
-              type="date"
-              hint="When can you start?"
-              {...register('availableFrom')}
-            />
-            <Input
-              label="Hours Per Week"
-              type="number"
-              min={1}
-              max={40}
-              placeholder="e.g. 10"
-              hint="How many hours can you commit weekly?"
-              {...register('hoursPerWeek')}
-            />
-          </div>
-        </div>
+            {show('coverLetter') && (
+              <Textarea
+                label="Cover Letter"
+                required={req('coverLetter')}
+                placeholder="Introduce yourself and explain why you'd like to volunteer for this opportunity."
+                rows={5}
+                error={errors.coverLetter?.message}
+                {...register('coverLetter', req('coverLetter')
+                  ? { required: 'A cover letter is required', minLength: { value: 50, message: 'Please write at least 50 characters' } }
+                  : {}
+                )}
+              />
+            )}
 
-        {/* Section 4: Emergency Contact */}
-        <div className="card p-5 flex flex-col gap-4">
-          <SectionHeader
-            icon={Phone}
-            title="Emergency Contact"
-            subtitle="Optional — used only in case of an emergency during in-person activities"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Contact Full Name"
-              placeholder="e.g. Marie Uwimana"
-              {...register('emergencyContactName')}
-            />
-            <Input
-              label="Contact Phone"
-              type="tel"
-              placeholder="+250 7XX XXX XXX"
-              {...register('emergencyContactPhone')}
-            />
+            {show('experience') && (
+              <Textarea
+                label="Relevant Skills & Experience"
+                required={req('experience')}
+                placeholder="Describe your background or previous volunteer experience relevant to this opportunity…"
+                rows={4}
+                error={errors.experience?.message}
+                {...register('experience', req('experience') ? { required: 'Please describe your relevant experience' } : {})}
+              />
+            )}
+
+            {(show('availableFrom') || show('hoursPerWeek')) && (
+              <div className={cn('grid gap-4', show('availableFrom') && show('hoursPerWeek') ? 'grid-cols-2' : 'grid-cols-1')}>
+                {show('availableFrom') && (
+                  <Input
+                    label="Available From"
+                    type="date"
+                    required={req('availableFrom')}
+                    hint="When can you start?"
+                    {...register('availableFrom', req('availableFrom') ? { required: 'Please provide your start availability' } : {})}
+                  />
+                )}
+                {show('hoursPerWeek') && (
+                  <Input
+                    label="Hours Per Week"
+                    type="number"
+                    min={1}
+                    max={40}
+                    placeholder="e.g. 10"
+                    required={req('hoursPerWeek')}
+                    hint="How many hours can you commit weekly?"
+                    {...register('hoursPerWeek', req('hoursPerWeek') ? { required: 'Please specify hours per week' } : {})}
+                  />
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Section 4: Emergency Contact — conditional */}
+        {showEmergencyCard && (
+          <div className="card p-5 flex flex-col gap-4">
+            <SectionHeader
+              icon={Phone}
+              title="Emergency Contact"
+              subtitle={req('emergencyContact') ? 'Required for this opportunity' : 'Optional — used only in case of emergency during in-person activities'}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Contact Full Name"
+                placeholder="e.g. Marie Uwimana"
+                required={req('emergencyContact')}
+                {...register('emergencyContactName', req('emergencyContact') ? { required: 'Emergency contact name is required' } : {})}
+              />
+              <Input
+                label="Contact Phone"
+                type="tel"
+                placeholder="+250 7XX XXX XXX"
+                required={req('emergencyContact')}
+                {...register('emergencyContactPhone', req('emergencyContact') ? { required: 'Emergency contact phone is required' } : {})}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 pb-2">
@@ -349,6 +454,8 @@ export default function OpportunityApply() {
           </Button>
         </div>
       </form>
+
+      </div>{/* end two-column grid */}
     </div>
   );
 }
