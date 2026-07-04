@@ -14,20 +14,24 @@ export default function BrowseCampaigns() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
+  const [tab, setTab] = useState('active');
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [donateTarget, setDonateTarget] = useState(null);
 
+  const archived = tab === 'archived';
+
   const fetchCampaigns = useCallback(() => {
     setLoading(true);
-    const params = { status: 'active', limit: 24 };
+    const params = { limit: 24, archived };
+    if (!archived) params.status = 'active';
     if (category !== 'all') params.category = category;
     if (search.trim()) params.search = search.trim();
     campaignApi.getAll(params)
       .then(res => setCampaigns(res.campaigns))
       .catch(() => setCampaigns([]))
       .finally(() => setLoading(false));
-  }, [category, search]);
+  }, [category, search, archived]);
 
   useEffect(() => {
     const timer = setTimeout(fetchCampaigns, search ? 400 : 0);
@@ -39,6 +43,24 @@ export default function BrowseCampaigns() {
       <div>
         <h1 className="page-header">{t('campaigns.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">{t('campaigns.subtitle')}</p>
+      </div>
+
+      {/* Active / Archived tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {['active', 'archived'].map((tabKey) => (
+          <button
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
+            className={cn(
+              'px-4 py-2 text-sm font-semibold border-b-2 transition-colors',
+              tab === tabKey
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            )}
+          >
+            {tabKey === 'archived' ? t('campaigns.filter_archived') : t('campaigns.filter_active')}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -81,7 +103,7 @@ export default function BrowseCampaigns() {
               key={c._id}
               campaign={c}
               detailBasePath="/dashboard/campaigns"
-              onDonate={c.status === 'active' ? setDonateTarget : undefined}
+              onDonate={!archived && c.status === 'active' ? setDonateTarget : undefined}
             />
           ))}
         </div>

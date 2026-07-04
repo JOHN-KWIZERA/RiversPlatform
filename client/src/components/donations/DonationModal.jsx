@@ -9,7 +9,8 @@ import Input, { Textarea } from '../ui/Input';
 import Progress from '../ui/Progress';
 import MoMoPaymentFlow from './MoMoPaymentFlow';
 import { formatCurrency, progressPercent } from '../../lib/utils';
-import { donationApi, auditApi } from '../../lib/api';
+import { donationApi, auditApi, activityApi } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 
 const AMOUNTS = [10000, 25000, 50000, 100000, 250000];
 const PAYMENT_METHODS = [
@@ -20,6 +21,7 @@ const PAYMENT_METHODS = [
 
 export default function DonationModal({ open, onClose, campaign }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [showMoMo, setShowMoMo] = useState(false);
@@ -35,6 +37,8 @@ export default function DonationModal({ open, onClose, campaign }) {
 
   const onSubmit = async (data) => {
     const amt = Number(data.amount);
+    // Track intent so abandoned donations can be re-nudged by email.
+    activityApi.log('donation_started', campaign._id);
     if (data.paymentMethod === 'mobile_money') {
       setPendingData({ ...data, amount: amt });
       setShowMoMo(true);
@@ -44,7 +48,8 @@ export default function DonationModal({ open, onClose, campaign }) {
     setLoading(true);
     try {
       await donationApi.create({ campaignId: campaign._id, ...data, amount: amt });
-      auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: amt, method: data.paymentMethod } });
+      if (user) auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: amt, method: data.paymentMethod } });
+      activityApi.log('donation_completed', campaign._id);
       toast.success('Thank you for your donation!');
       reset();
       setSelectedAmount(null);
@@ -59,7 +64,8 @@ export default function DonationModal({ open, onClose, campaign }) {
   const handleMoMoSuccess = async (paymentRef) => {
     try {
       await donationApi.create({ campaignId: campaign._id, ...pendingData, paymentRef });
-      auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: pendingData.amount, method: 'mobile_money', paymentRef } });
+      if (user) auditApi.log({ action: 'donation_created', targetType: 'campaign', targetId: campaign._id, targetLabel: campaign.title, metadata: { amount: pendingData.amount, method: 'mobile_money', paymentRef } });
+      activityApi.log('donation_completed', campaign._id);
       // Stay on success screen for 2s then close
       setTimeout(() => { setShowMoMo(false); setPendingData(null); reset(); setSelectedAmount(null); onClose(); }, 3000);
     } catch (err) {

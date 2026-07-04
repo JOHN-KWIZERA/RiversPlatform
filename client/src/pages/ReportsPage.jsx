@@ -3,12 +3,12 @@ import {
   FileText, Download, Globe, Megaphone, Loader2, CheckCircle2,
   BarChart3, Calendar, Search, ChevronDown, Eye, Table2, Users,
   Heart, ShieldCheck, ClipboardList, Layers, AlignLeft, X, Filter,
-  TrendingUp, MapPin,
+  TrendingUp, MapPin, ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Spinner from '../components/ui/Spinner';
 import RiversMark from '../components/ui/RiversMark';
-import { campaignApi, analyticsApi, donationApi, expenditureApi, beneficiaryRegisterApi, disbursementApi } from '../lib/api';
+import { campaignApi, analyticsApi, donationApi, expenditureApi, beneficiaryRegisterApi, disbursementApi, sharedReportApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatDate, progressPercent, cn } from '../lib/utils';
 
@@ -1267,6 +1267,142 @@ export default function ReportsPage() {
     } finally { setGenerating(null); }
   };
 
+  // Build a self-contained snapshot so the public /report/:token viewer needs
+  // no cross-table access. No donor names / PII are ever included.
+  const buildSnapshot = async () => {
+    const base = {
+      type: config.type,
+      title: config.title,
+      sections: config.sections,
+      dateFrom: config.dateFrom,
+      dateTo: config.dateTo,
+      generatedAt: new Date().toISOString(),
+    };
+
+    if (config.type === 'platform') {
+      const a = data.analytics || {};
+      return {
+        ...base,
+        analytics: {
+          totalCampaigns:   a?.campaigns?.total ?? 0,
+          activeCampaigns:  a?.campaigns?.active ?? 0,
+          totalRaised:      a?.donations?.totalAmount ?? 0,
+          totalUsers:       a?.users?.total ?? 0,
+          familiesSupported: a?.familiesSupported ?? 0,
+          successRate:      a?.campaigns?.successRate ?? null,
+          statusBreakdown:  (a?.charts?.campaignsByStatus || []).map(s => ({ status: s.status, count: s.count })),
+        },
+      };
+    }
+
+    if (config.type === 'donor') {
+      const donations = filterDonationsByDate(data.donations);
+      return {
+        ...base,
+        donations: donations.map(d => ({
+          donatedAt: d.donatedAt,
+          campaignTitle: d.campaignId?.title || '',
+          amount: d.amount,
+          paymentMethod: d.paymentMethod,
+          status: d.status,
+        })),
+        totals: {
+          raised: donations.filter(d => d.status === 'completed').reduce((s, d) => s + (d.amount || 0), 0),
+          donors: new Set(donations.map(d => d.campaignId?._id).filter(Boolean)).size,
+        },
+      };
+    }
+
+    // campaign — resolve detail for the selected campaigns (capped for size)
+    const targets = selectedCampaigns.slice(0, 10);
+    const detail = await Promise.all(targets.map(c => Promise.all([
+      donationApi.getCampaignDonations(c._id).catch(() => []),
+      expenditureApi.getByCampaign(c._id).catch(() => []),
+      beneficiaryRegisterApi.getByCampaign(c._id).catch(() => []),
+      disbursementApi.getByCampaign(c._id).catch(() => []),
+    ])));
+
+    const donations = detail.flatMap(([don], i) =>
+      (Array.isArray(don) ? don : []).map(d => ({
+        donatedAt: d.donatedAt,
+        campaignTitle: targets[i]?.title || '',
+        amount: d.amount,
+        paymentMethod: d.paymentMethod,
+        status: d.status,
+      }))
+    );
+    const expenditures = detail.flatMap(([, exp]) =>
+      (Array.isArray(exp) ? exp : []).map(e => ({
+        date: e.date, description: e.description, category: e.category,
+        amount: e.amount, hasReceipt: !!e.receiptUrl,
+      }))
+    );
+    const beneficiaries = detail.flatMap(([, , ben]) =>
+      (Array.isArray(ben) ? ben : []).map(b => ({
+        recordId: b.recordId, grade: b.grade, ageBand: b.ageBand, kitType: b.kitType,
+        receivedAt: b.receivedAt, isVerified: b.isVerified, deliveryConfirmed: b.deliveryConfirmed,
+      }))
+    );
+    const milestones = detail.flatMap(([, , , mil]) =>
+      (Array.isArray(mil) ? mil : []).map(m => ({
+        title: m.title, targetAmount: m.targetAmount, dueDate: m.dueDate, status: m.status,
+      }))
+    );
+
+    return {
+      ...base,
+      campaigns: selectedCampaigns.map(c => ({
+        id: c._id, title: c.title, community: c.community, district: c.district,
+        category: c.category, status: c.status, targetAmount: c.targetAmount,
+        raisedAmount: c.raisedAmount, donorCount: c.donorCount,
+        beneficiaryCount: c.beneficiaryCount, description: c.description,
+      })),
+      totals: {
+        target:        selectedCampaigns.reduce((s, c) => s + (c.targetAmount || 0), 0),
+        raised:        selectedCampaigns.reduce((s, c) => s + (c.raisedAmount || 0), 0),
+        donors:        selectedCampaigns.reduce((s, c) => s + (c.donorCount || 0), 0),
+        beneficiaries: selectedCampaigns.reduce((s, c) => s + (c.beneficiaryCount || 0), 0),
+      },
+      donations, expenditures, beneficiaries, milestones,
+    };
+  };
+
+  const handleShareWeb = async () => {
+    if (config.type === 'campaign' && selectedCampaigns.length === 0) {
+      toast.error('No campaigns found.'); return;
+    }
+    // Open the tab synchronously (within the click) so it isn't popup-blocked;
+    // we point it at the report URL once the snapshot is saved.
+    const win = window.open('', '_blank');
+    if (win) win.document.write('<p style="font-family:sans-serif;padding:24px;color:#64748b">Generating your report…</p>');
+
+    setGenerating('share');
+    try {
+      const snapshot = await buildSnapshot();
+      const defaultTitle = config.title || (
+        config.type === 'campaign'
+          ? (selectedCampaigns.length === 1 ? selectedCampaigns[0].title : `${selectedCampaigns.length} Campaigns — Impact Report`)
+          : config.type === 'platform' ? 'Platform Impact Report' : 'My Donation Summary'
+      );
+      const token = await sharedReportApi.create({ title: defaultTitle, config, snapshot });
+      if (!token) throw new Error('No token returned');
+      const url = `${window.location.origin}/report/${token}`;
+
+      if (win && !win.closed) {
+        win.location.href = url;
+        toast.success('Report preview opened in a new tab.');
+      } else {
+        // Popups blocked — fall back to copying the link.
+        try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+        toast.success('Report link copied — your browser blocked the new tab, so paste it to open.');
+      }
+    } catch (err) {
+      if (win && !win.closed) win.close();
+      console.error(err);
+      toast.error('Failed to create report.');
+    } finally { setGenerating(null); }
+  };
+
   const availableTypes = REPORT_TYPES.filter(t => t.roles.includes(role));
   const availableSections = Object.entries(ALL_SECTIONS)
     .filter(([, s]) => s.types.includes(config.type));
@@ -1424,15 +1560,15 @@ export default function ReportsPage() {
           {/* Download buttons */}
           <div className="flex flex-col gap-2">
             <button
-              onClick={handleDownloadPdf}
+              onClick={handleShareWeb}
               disabled={!!generating || (config.type === 'campaign' && selectedCampaigns.length === 0)}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#001E2B] hover:bg-[#002d42] text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-warm"
             >
-              {generating === 'pdf'
+              {generating === 'share'
                 ? <Loader2 size={16} className="animate-spin" />
-                : <Download size={16} />
+                : <ExternalLink size={16} />
               }
-              Download PDF Report
+              Open Report Preview
             </button>
             <button
               onClick={handleDownloadExcel}
@@ -1445,6 +1581,9 @@ export default function ReportsPage() {
               }
               Export as Excel (.xlsx)
             </button>
+            <p className="text-[11px] text-gray-400 text-center px-2">
+              The preview opens in a new tab where you can download the PDF or copy a shareable link.
+            </p>
             {config.type === 'campaign' && selectedCampaigns.length === 0 && !loading && (
               <p className="text-[11px] text-amber-500 text-center">No campaigns available to report on</p>
             )}

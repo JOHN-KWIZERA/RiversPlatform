@@ -33,7 +33,18 @@
     "featured": "Cyerekewe",
     "verified": "Byemejwe",
     "completed": "Birangiye",
-    "no_results": "Nta bikorwa bibonetse"
+    "no_results": "Nta bikorwa bibonetse",
+    "filter_active": "Bikora",
+    "filter_archived": "Byabitswe",
+    "archived": "Byabitswe",
+    "no_archived": "Nta bikorwa byabitswe biraboneka."
+  },
+  "gallery": {
+    "title": "Mu murima",
+    "subtitle": "Reba imiryango, abana n'urubyiruko inkunga yawe yagezeho mu Rwanda hose.",
+    "view_campaigns": "Reba ibikorwa byose",
+    "video_tag": "Reba",
+    "video_title": "Reba ibikorwa bya RIVERS mu bikorwa"
   },
   "categories": {
     "education": "Uburezi",
@@ -88,6 +99,7 @@
     "recent_donations": "Impano za Vuba",
     "recent_campaigns": "Ibikorwa bya Vuba",
     "audit": "Inzira y'Ibikorwa",
+    "broadcasts": "Ubutumwa bwa Imeyili",
     "opportunities": "Amahirwe"
   },
   "status": {

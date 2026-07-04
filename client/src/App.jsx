@@ -14,6 +14,9 @@ const Login             = lazy(() => import('./pages/auth/Login'));
 const Signup            = lazy(() => import('./pages/auth/Signup'));
 const ForgotPassword    = lazy(() => import('./pages/ForgotPassword'));
 const NotFound          = lazy(() => import('./pages/NotFound'));
+const ReportViewerPage  = lazy(() => import('./pages/ReportViewerPage'));
+const Unsubscribe       = lazy(() => import('./pages/Unsubscribe'));
+const EmailBroadcasts   = lazy(() => import('./pages/admin/EmailBroadcasts'));
 const DashboardRouter   = lazy(() => import('./pages/DashboardRouter'));
 const AdminDashboard    = lazy(() => import('./pages/admin/AdminDashboard'));
 const CampaignApproval  = lazy(() => import('./pages/admin/CampaignApproval'));
@@ -108,6 +111,8 @@ export default function App() {
           <Route path="/campaigns"   element={<Campaigns />} />
           <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/about"       element={<About />} />
+          <Route path="/report/:token" element={<ReportViewerPage />} />
+          <Route path="/unsubscribe/:token" element={<Unsubscribe />} />
 
           {/* Auth */}
           <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />
@@ -130,6 +135,7 @@ export default function App() {
 
             {/* Admin */}
             <Route path="users" element={<UserManagement />} />
+            <Route path="broadcasts" element={<EmailBroadcasts />} />
 
             {/* Sponsor */}
             <Route path="browse"    element={<BrowseCampaigns />} />

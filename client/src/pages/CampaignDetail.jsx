@@ -6,7 +6,7 @@ import {
   Globe, Calendar, Share2, Heart, Package, Truck, Wrench,
   FileText, MoreHorizontal, ChevronDown, ChevronUp, ShieldCheck,
   MessageCircle, ClipboardList, Layers, Download, Loader2,
-  Shield, RefreshCw,
+  Shield, RefreshCw, Archive,
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -14,7 +14,7 @@ import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import DonationModal from '../components/donations/DonationModal';
-import { campaignApi, expenditureApi, beneficiaryRegisterApi, disbursementApi, donationApi, recurringGivingApi } from '../lib/api';
+import { campaignApi, expenditureApi, beneficiaryRegisterApi, disbursementApi, donationApi, recurringGivingApi, activityApi } from '../lib/api';
 import { formatCurrency, formatDate, progressPercent, categoryColor, statusColor } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -64,6 +64,8 @@ export default function CampaignDetail({ standalone = true }) {
     ];
     if (user && role === 'sponsor') {
       loaders.push(donationApi.getMyForCampaign(id).catch(() => null));
+      // Track view so we can nudge sponsors who browse but never give.
+      activityApi.log('campaign_view', id);
     }
     Promise.all(loaders).then(([c, exps, bnfs, msts, myDon]) => {
       setCampaign(c);
@@ -378,12 +380,17 @@ export default function CampaignDetail({ standalone = true }) {
 
             {/* Col 2: Actions */}
             <div className="flex flex-col gap-3">
-              {campaign.status === 'active' && (
+              {campaign.isArchived && (
+                <div className="flex items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl text-gray-500 text-sm font-bold border border-gray-200">
+                  <Archive size={16} /> Archived — donations closed
+                </div>
+              )}
+              {campaign.status === 'active' && !campaign.isArchived && (
                 <Button variant="primary" size="lg" className="w-full" leftIcon={<Heart size={16} />} onClick={() => setDonateOpen(true)}>
                   Donate Now
                 </Button>
               )}
-              {campaign.status === 'completed' && (
+              {campaign.status === 'completed' && !campaign.isArchived && (
                 <div className="flex items-center justify-center gap-2 py-3 bg-forest-50 rounded-xl text-forest-700 text-sm font-bold border border-forest-100">
                   <CheckCircle2 size={16} /> Campaign Completed
                 </div>
@@ -402,7 +409,7 @@ export default function CampaignDetail({ standalone = true }) {
                   Download my impact report
                 </button>
               )}
-              {role === 'sponsor' && campaign?.status === 'active' && !pledgeDone && (
+              {role === 'sponsor' && campaign?.status === 'active' && !campaign.isArchived && !pledgeDone && (
                 pledgeOpen ? (
                   <div className="border border-brand-200 rounded-xl p-4 flex flex-col gap-3 bg-brand-50/40">
                     <p className="text-xs font-bold text-brand-800">Set up monthly pledge</p>

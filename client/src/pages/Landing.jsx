@@ -8,6 +8,7 @@ import {
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import DonationModal from '../components/donations/DonationModal';
+import ImpactGallery from '../components/landing/ImpactGallery';
 import { campaignApi, opportunityApi } from '../lib/api';
 import { MOCK_CAMPAIGNS, formatDate, formatCurrency } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -250,6 +251,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Impact gallery — photos + video ──────────────────── */}
+      <ImpactGallery />
 
       {/* ── Impact mosaic — Mastercard style ─────────────────── */}
       <section className="py-28 bg-white">

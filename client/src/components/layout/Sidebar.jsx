@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Megaphone, Heart, Users, FileText,
-  Settings, LogOut, ChevronLeft, Handshake, Star, Repeat2, ShieldCheck,
+  Settings, LogOut, ChevronLeft, Handshake, Star, Repeat2, ShieldCheck, Mail,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ const ROLE_NAVS = {
     { to: '/dashboard/opportunities', label: 'dashboard.opportunities', icon: Handshake },
     { to: '/dashboard/reports',       label: 'dashboard.reports',       icon: FileText },
     { to: '/dashboard/users',         label: 'dashboard.users',         icon: Users,        section: 'Platform' },
+    { to: '/dashboard/broadcasts',    label: 'dashboard.broadcasts',    icon: Mail },
     { to: '/dashboard/audit',         label: 'dashboard.audit',         icon: ShieldCheck },
   ],
   community_leader: [

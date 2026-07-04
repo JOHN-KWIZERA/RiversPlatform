@@ -1,4 +1,4 @@
-import { MapPin, Users, Clock, Zap, CheckCircle2, Globe, ShieldCheck } from 'lucide-react';
+import { MapPin, Users, Clock, Zap, CheckCircle2, Globe, ShieldCheck, Archive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { cn, formatCurrency, categoryColor, progressPercent } from '../../lib/utils';
@@ -36,7 +36,12 @@ export default function CampaignCard({ campaign, onDonate, detailBasePath = '/ca
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 to-transparent" />
 
         {/* Top-left badges */}
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          {campaign.isArchived && (
+            <span className="flex items-center gap-1 bg-[#001E2B]/85 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-md">
+              <Archive size={9} /> {t('campaigns.archived')}
+            </span>
+          )}
           {campaign.isUrgent && (
             <span className="flex items-center gap-1 bg-red-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-md">
               <Zap size={9} /> {t('campaigns.urgent')}
@@ -118,7 +123,7 @@ export default function CampaignCard({ campaign, onDonate, detailBasePath = '/ca
         </div>
 
         {/* Donate CTA */}
-        {campaign.status === 'active' && onDonate && (
+        {campaign.status === 'active' && !campaign.isArchived && onDonate && (
           <Button
             variant="primary"
             size="sm"

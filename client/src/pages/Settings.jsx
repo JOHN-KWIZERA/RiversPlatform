@@ -20,6 +20,24 @@ export default function Settings() {
   const { user, refreshProfile } = useAuth();
   const [tab, setTab] = useState('profile');
   const [loading, setLoading] = useState(false);
+  const [emailsOn, setEmailsOn] = useState(!user?.emailOptOut);
+  const [savingEmails, setSavingEmails] = useState(false);
+
+  const toggleEmails = async () => {
+    const next = !emailsOn;
+    setEmailsOn(next);
+    setSavingEmails(true);
+    try {
+      await authApi.updateProfile({ emailOptOut: !next });
+      await refreshProfile();
+      toast.success(next ? 'Email notifications enabled.' : 'You will no longer receive emails.');
+    } catch {
+      setEmailsOn(!next); // revert on failure
+      toast.error('Failed to update email preference.');
+    } finally {
+      setSavingEmails(false);
+    }
+  };
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: { fullName: user?.fullName, phone: user?.phone, location: user?.location, organisation: user?.organisation, community: user?.community },
@@ -134,6 +152,17 @@ export default function Settings() {
               <div className="mb-3">
                 <h3 className="font-semibold text-[#1a1a2e]">Notification Preferences</h3>
                 <p className="text-sm text-gray-400 mt-1">Control which emails and alerts you receive.</p>
+              </div>
+              {/* Functional master email toggle — wired to email_opt_out */}
+              <div className="flex items-center justify-between py-3.5 border-b border-gray-100 bg-brand-50/40 -mx-6 px-6">
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a2e]">Email notifications</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Pledge reminders, campaign nudges and announcements. Turning this off unsubscribes you from all emails.</p>
+                </div>
+                <label className="relative inline-flex cursor-pointer ml-6 flex-shrink-0">
+                  <input type="checkbox" checked={emailsOn} onChange={toggleEmails} disabled={savingEmails} className="sr-only peer" />
+                  <div className="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:bg-brand-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-4 after:h-4 after:transition-transform peer-checked:after:translate-x-5" />
+                </label>
               </div>
               {[
                 { label: 'Campaign updates', desc: 'When campaigns you support post updates' },

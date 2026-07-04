@@ -33,7 +33,18 @@
     "featured": "Featured",
     "verified": "Verified",
     "completed": "Completed",
-    "no_results": "No campaigns found"
+    "no_results": "No campaigns found",
+    "filter_active": "Active",
+    "filter_archived": "Archived",
+    "archived": "Archived",
+    "no_archived": "No archived campaigns yet."
+  },
+  "gallery": {
+    "title": "From the field",
+    "subtitle": "A look at the communities, families, and young people your support has reached across Rwanda.",
+    "view_campaigns": "See all campaigns",
+    "video_tag": "Watch",
+    "video_title": "See RIVERS campaigns in action"
   },
   "categories": {
     "education": "Education",
@@ -88,6 +99,7 @@
     "recent_donations": "Recent Donations",
     "recent_campaigns": "Recent Campaigns",
     "audit": "Audit Trail",
+    "broadcasts": "Email Broadcasts",
     "opportunities": "Opportunities"
   },
   "status": {

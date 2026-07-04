@@ -51,13 +51,17 @@ Find these in your Supabase dashboard under **Project Settings → API**.
 
 ### 3. Apply database migrations
 
-In the Supabase SQL editor, run the migration files in order:
+In the Supabase SQL editor, run the migration files in order (`001` … `015`):
 
 ```
-supabase/migrations/001_schema.sql   — all tables
-supabase/migrations/002_rls.sql      — RLS policies + storage bucket
-supabase/migrations/003_functions.sql — triggers and RPCs
-supabase/migrations/004_archive.sql  — archive flags
+supabase/migrations/001_schema.sql        — all tables
+supabase/migrations/002_rls.sql           — RLS policies + storage bucket
+supabase/migrations/003_functions.sql     — triggers and RPCs
+supabase/migrations/004_archive.sql        — archive flags
+…
+supabase/migrations/013_email_infra.sql   — pg_cron/pg_net, email_log, opt-out, schedules
+supabase/migrations/014_sponsor_activity.sql — abandoned-donation tracking + broadcasts
+supabase/migrations/015_shared_reports.sql — shareable web-report snapshots
 ```
 
 ### 4. Run locally
@@ -73,10 +77,55 @@ Client runs at **http://localhost:5173**
 
 ## Supabase setup checklist
 
-- [ ] Run all 4 migration files in the SQL editor
+- [ ] Run all migration files (`001` … `015`) in the SQL editor
 - [ ] Authentication → Providers → Email → disable **"Confirm email"** (for dev)
 - [ ] Authentication → Providers → Google → add OAuth Client ID + Secret
 - [ ] Storage bucket `rivers-uploads` is created automatically by `002_rls.sql`
+- [ ] Enable extensions **pg_cron** and **pg_net** (Database → Extensions) if `013_email_infra.sql` didn't
+- [ ] Complete the **Email & automation** setup below
+
+---
+
+## Email & automation setup
+
+Automated emails (pledge reminders, abandoned-donation nudges, admin broadcasts)
+run on Supabase Edge Functions triggered by `pg_cron`. All emails send through
+[Resend](https://resend.com). No PII is stored in logs — `email_log` keeps only
+`user_id` + kind + status.
+
+### 1. Edge-function secrets
+
+```bash
+supabase secrets set RESEND_API_KEY=<your-resend-key>
+supabase secrets set FROM_EMAIL=noreply@yourdomain.rw
+supabase secrets set PUBLIC_SITE_URL=https://rivers-platform.vercel.app
+```
+(`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.)
+
+### 2. Deploy the functions
+
+```bash
+supabase functions deploy pledge-reminders
+supabase functions deploy abandoned-nudge
+supabase functions deploy send-broadcast
+supabase functions deploy send-application-email
+```
+
+### 3. Store the cron credentials (once, in the SQL editor)
+
+`013_email_infra.sql` schedules the daily jobs but needs the project URL + service
+key to call the functions:
+
+```sql
+insert into private.app_config(key, value) values
+  ('project_url',      'https://<ref>.supabase.co'),
+  ('service_role_key', '<service-role-key>')
+on conflict (key) do update set value = excluded.value;
+```
+
+Verify the schedules with `select * from cron.job;`. The **Email Broadcasts** admin
+page (`/dashboard/broadcasts`) sends marketing emails on demand; recipients who
+unsubscribed (`email_opt_out`) are always excluded.
 
 ### Creating an admin user
 

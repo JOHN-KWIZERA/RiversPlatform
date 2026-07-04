@@ -66,6 +66,10 @@ export default function RecurringGiving() {
       <div>
         <h1 className="page-header">Recurring Giving</h1>
         <p className="text-sm text-gray-500 mt-1">Your scheduled monthly pledges to community campaigns.</p>
+        <div className="mt-3 flex items-start gap-2 text-xs text-forest-700 bg-forest-50 border border-forest-100 rounded-lg px-3 py-2 max-w-xl">
+          <Calendar size={13} className="mt-0.5 flex-shrink-0" />
+          <span>We'll email you a reminder before each pledge is due so you can have the funds ready — and a nudge if one lapses. Manage emails in <button onClick={() => navigate('/dashboard/settings')} className="underline font-semibold">Settings</button>.</span>
+        </div>
       </div>
 
       {/* Payment gateway notice */}

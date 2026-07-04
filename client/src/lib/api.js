@@ -67,7 +67,7 @@ export const authApi = {
     const map = {
       fullName: 'full_name', phone: 'phone', location: 'location',
       avatar: 'avatar', organisation: 'organisation', community: 'community',
-      skills: 'skills', accessLevel: 'access_level',
+      skills: 'skills', accessLevel: 'access_level', emailOptOut: 'email_opt_out',
     };
     Object.entries(data).forEach(([k, v]) => { snake[map[k] ?? k] = v; });
     return qOne(
@@ -81,6 +81,13 @@ export const authApi = {
     supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     }),
+
+  // One-click email unsubscribe (public, by token via SECURITY DEFINER RPC)
+  unsubscribe: async (token) => {
+    const { data, error } = await supabase.rpc('unsubscribe_email', { p_token: token });
+    if (error) throw error;
+    return !!data;
+  },
 };
 
 // ── campaignApi ───────────────────────────────────────────────
@@ -202,7 +209,7 @@ export const donationApi = {
   create: async (data) => {
     const id = await uid();
     const payload = {
-      sponsor_id:     id,
+      sponsor_id:     id ?? null,          // null → guest (logged-out) donation
       campaign_id:    data.campaignId,
       amount:         data.amount,
       currency:       data.currency       || 'RWF',
@@ -210,8 +217,15 @@ export const donationApi = {
       payment_method: data.paymentMethod  || 'mobile_money',
       payment_ref:    data.paymentRef     || '',
       message:        data.message        || '',
-      is_anonymous:   data.isAnonymous    || false,
+      is_anonymous:   data.isAnonymous || !id,  // guests are inherently anonymous
     };
+    // Guests (anon) have no SELECT policy on donations, so returning the row
+    // back would make PostgREST reject the write — insert without representation.
+    if (!id) {
+      const { error } = await supabase.from('donations').insert(payload);
+      if (error) throw error;
+      return null;
+    }
     return qOne(supabase.from('donations').insert(payload).select().single());
   },
 
@@ -857,6 +871,74 @@ export const recurringGivingApi = {
 
   cancel: async (id) =>
     qOne(supabase.from('recurring_donations').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', id).select().single()),
+};
+
+// ── activityApi ───────────────────────────────────────────────
+// Lightweight, fire-and-forget sponsor activity for abandoned-donation flows.
+
+export const activityApi = {
+  log: async (event, campaignId = null) => {
+    try {
+      const id = await uid();
+      if (!id) return;
+      await supabase.from('sponsor_activity').insert({
+        sponsor_id: id, event, campaign_id: campaignId,
+      });
+    } catch { /* best-effort — never block the UI */ }
+  },
+};
+
+// ── broadcastApi ──────────────────────────────────────────────
+// Admin email marketing. Send is performed by the send-broadcast edge function.
+
+export const broadcastApi = {
+  getAll: async () => {
+    const data = await q(
+      supabase.from('email_broadcasts').select('*').order('created_at', { ascending: false })
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
+  create: async ({ subject, bodyHtml, segment }) =>
+    qOne(
+      supabase.from('email_broadcasts')
+        .insert({ subject, body_html: bodyHtml, segment: segment || 'all' })
+        .select().single()
+    ),
+
+  send: async (id) => {
+    const { data, error } = await supabase.functions.invoke('send-broadcast', { body: { broadcastId: id } });
+    if (error) throw error;
+    return data;
+  },
+
+  remove: async (id) => {
+    const { error } = await supabase.from('email_broadcasts').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ── sharedReportApi ───────────────────────────────────────────
+// Reports are snapshotted at share time so the public viewer needs no
+// cross-table access. Reads go through a SECURITY DEFINER RPC (by token).
+
+export const sharedReportApi = {
+  create: async ({ title, config, snapshot }) => {
+    const id = await uid();
+    const row = await qOne(
+      supabase.from('shared_reports')
+        .insert({ created_by: id, title: title || 'Impact Report', config, snapshot })
+        .select('token')
+        .single()
+    );
+    return row?.token;
+  },
+
+  getByToken: async (token) => {
+    const { data, error } = await supabase.rpc('get_shared_report', { p_token: token });
+    if (error) throw error;
+    return data || null;
+  },
 };
 
 // ── auditApi ──────────────────────────────────────────────────
