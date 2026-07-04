@@ -5,6 +5,7 @@ import { BarChart2, FileText, Heart } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import Spinner from './components/ui/Spinner';
 import DashboardLayout from './components/layout/DashboardLayout';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const Landing           = lazy(() => import('./pages/Landing'));
 const Campaigns         = lazy(() => import('./pages/Campaigns'));
@@ -104,6 +105,7 @@ export default function App() {
           error:   { iconTheme: { primary: '#ef4444', secondary: 'white' } },
         }}
       />
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public */}
@@ -165,6 +167,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </>
   );
 }

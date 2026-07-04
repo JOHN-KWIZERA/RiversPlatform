@@ -3,7 +3,9 @@
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
+  // Must include every header supabase-js sends, or the preflight is rejected
+  // and the browser reports "Failed to send a request to the Edge Function".
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 

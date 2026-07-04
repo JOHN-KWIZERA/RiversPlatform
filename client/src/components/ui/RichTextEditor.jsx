@@ -46,6 +46,7 @@ export default function RichTextEditor({
   const skipSyncRef = useRef(false);
 
   const editor = useEditor({
+    immediatelyRender: false, // avoid tiptap v3 null-editor crash on first mount
     extensions: [
       StarterKit,
       Underline,
@@ -175,7 +176,7 @@ export default function RichTextEditor({
 
         {/* Editor — fixed height, scrolls when content overflows */}
         <div className="h-[220px] overflow-y-auto">
-          <EditorContent editor={editor} />
+          {editor && <EditorContent editor={editor} />}
         </div>
       </div>
 
