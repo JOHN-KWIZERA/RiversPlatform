@@ -171,7 +171,7 @@ rivers-platform/
 
 ---
 
-## Deployment (Vercel)
+## Deployment (on Vercel)
 
 The client is deployed as a static Vite build. `client/vercel.json` includes a catch-all rewrite for SPA routing:
 
