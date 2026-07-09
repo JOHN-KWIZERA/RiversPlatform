@@ -1,5 +1,5 @@
 -- ============================================================
--- RIVERS PLATFORM — Shareable web reports
+-- RIVERS PLATFORM — Shareable web report
 -- A report is snapshotted at share time (config + resolved data),
 -- so the public viewer never needs cross-table read access.
 -- No donor names / PII are stored in the snapshot.
