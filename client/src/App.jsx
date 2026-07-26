@@ -13,6 +13,7 @@ const CampaignDetail    = lazy(() => import('./pages/CampaignDetail'));
 const About             = lazy(() => import('./pages/About'));
 const Login             = lazy(() => import('./pages/auth/Login'));
 const Signup            = lazy(() => import('./pages/auth/Signup'));
+const CompleteProfile   = lazy(() => import('./pages/auth/CompleteProfile'));
 const ForgotPassword    = lazy(() => import('./pages/ForgotPassword'));
 const NotFound          = lazy(() => import('./pages/NotFound'));
 const ReportViewerPage  = lazy(() => import('./pages/ReportViewerPage'));
@@ -76,9 +77,18 @@ function OpportunitiesRouter() {
 }
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, needsProfileCompletion } = useAuth();
   if (loading) return <PageLoader />;
+  if (needsProfileCompletion) return <Navigate to="/complete-profile" replace />;
   if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function CompleteProfileRoute({ children }) {
+  const { user, supabaseUser, loading, needsProfileCompletion } = useAuth();
+  if (loading) return <PageLoader />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  if (!supabaseUser || !needsProfileCompletion) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -120,6 +130,7 @@ export default function App() {
           <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/signup"          element={<GuestRoute><Signup /></GuestRoute>} />
           <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+          <Route path="/complete-profile" element={<CompleteProfileRoute><CompleteProfile /></CompleteProfileRoute>} />
 
           {/* Dashboard (protected) */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
