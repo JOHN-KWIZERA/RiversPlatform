@@ -14,6 +14,8 @@ const About             = lazy(() => import('./pages/About'));
 const Login             = lazy(() => import('./pages/auth/Login'));
 const Signup            = lazy(() => import('./pages/auth/Signup'));
 const CompleteProfile   = lazy(() => import('./pages/auth/CompleteProfile'));
+const PrivacyPolicy     = lazy(() => import('./pages/legal/PrivacyPolicy'));
+const TermsOfService    = lazy(() => import('./pages/legal/TermsOfService'));
 const ForgotPassword    = lazy(() => import('./pages/ForgotPassword'));
 const NotFound          = lazy(() => import('./pages/NotFound'));
 const ReportViewerPage  = lazy(() => import('./pages/ReportViewerPage'));
@@ -125,6 +127,8 @@ export default function App() {
           <Route path="/about"       element={<About />} />
           <Route path="/report/:token" element={<ReportViewerPage />} />
           <Route path="/unsubscribe/:token" element={<Unsubscribe />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms"   element={<TermsOfService />} />
 
           {/* Auth */}
           <Route path="/login"           element={<GuestRoute><Login /></GuestRoute>} />

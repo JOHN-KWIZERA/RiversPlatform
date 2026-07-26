@@ -206,7 +206,10 @@ export default function Signup() {
             </form>
 
             <p className="text-xs text-center text-gray-400 leading-relaxed">
-              By creating an account you agree to our Terms of Service and Privacy Policy.
+              By creating an account you agree to our{' '}
+              <Link to="/terms" target="_blank" className="text-brand-600 font-semibold hover:underline">Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" className="text-brand-600 font-semibold hover:underline">Privacy Policy</Link>.
               RIVERS complies with Rwanda Law No. 058/2021 on Data Protection.
             </p>
           </div>
