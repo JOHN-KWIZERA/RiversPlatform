@@ -96,6 +96,8 @@ export default function EditCampaign() {
         ...data,
         targetAmount: Number(data.targetAmount),
         beneficiaryCount: data.beneficiaryCount ? Number(data.beneficiaryCount) : undefined,
+        status: 'pending_review',
+        adminNote: '',
       });
       toast.success('Campaign updated and sent for review.');
       navigate('/dashboard/campaigns');

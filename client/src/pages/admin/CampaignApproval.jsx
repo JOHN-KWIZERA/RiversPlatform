@@ -19,6 +19,13 @@ import toast from 'react-hot-toast';
 
 const STATUS_FILTERS = ['all', 'pending_review', 'active', 'approved', 'completed', 'rejected'];
 
+// Approvals are stored as status 'active', not 'approved' — badge shows both
+// so it's clear at a glance that "Active" here means an approved campaign.
+function approvalStatusLabel(status, t) {
+  if (status === 'active') return `${t('status.approved')} (${t('status.active')})`;
+  return t(`status.${status}`);
+}
+
 export default function CampaignApproval() {
   const { t } = useTranslation();
   const [tab, setTab] = useState('active');
@@ -208,7 +215,7 @@ export default function CampaignApproval() {
                       <p className="text-xs text-gray-400">{formatCurrency(c.raisedAmount)} / {formatCurrency(c.targetAmount)}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${statusColor(c.status)}`}>{t(`status.${c.status}`)}</span>
+                      <span className={`badge ${statusColor(c.status)}`}>{approvalStatusLabel(c.status, t)}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -292,7 +299,7 @@ function CampaignDetailOverlay({ campaign: c, tab, note, onNoteChange, onApprove
           <ArrowLeft size={15} /> Back to campaigns
         </button>
         <div className="flex items-center gap-2">
-          <span className={`badge ${statusColor(c.status)}`}>{t(`status.${c.status}`)}</span>
+          <span className={`badge ${statusColor(c.status)}`}>{approvalStatusLabel(c.status, t)}</span>
           {c.isUrgent && (
             <span className="flex items-center gap-1 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-sm">
               <Zap size={11} /> Urgent
@@ -340,7 +347,7 @@ function CampaignDetailOverlay({ campaign: c, tab, note, onNoteChange, onApprove
                     {t(`categories.${c.category}`)}
                   </span>
                   <span className={`badge ${statusColor(c.status)}`}>
-                    {t(`status.${c.status}`)}
+                    {approvalStatusLabel(c.status, t)}
                   </span>
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-black text-[#001E2B] leading-tight">{c.title}</h1>
