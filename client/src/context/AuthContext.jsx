@@ -1,14 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, deepCamelCase } from '../lib/supabase';
 
-const DEMO_USERS = {
-  admin:            { id: 'demo-admin',       fullName: 'Demo Admin',         email: 'admin@rivers.demo',       role: 'admin',            roles: ['admin'],                         isVerified: true,  community: '', organisation: '' },
-  community_leader: { id: 'demo-leader',      fullName: 'Marie Uwimana',      email: 'leader@rivers.demo',      role: 'community_leader', roles: ['community_leader', 'sponsor'],    isVerified: true,  community: 'Bumbogo, Gasabo', organisation: '' },
-  sponsor:          { id: 'demo-sponsor',     fullName: 'Amahoro Foundation', email: 'sponsor@rivers.demo',     role: 'sponsor',          roles: ['sponsor'],                       isVerified: true,  community: '', organisation: 'Amahoro Foundation' },
-  volunteer:        { id: 'demo-volunteer',   fullName: 'Diane Mukansanga',   email: 'vol@rivers.demo',         role: 'volunteer',        roles: ['volunteer'],                     isVerified: false, community: '', organisation: '' },
-  beneficiary:      { id: 'demo-beneficiary', fullName: 'Solange Iradukunda', email: 'beneficiary@rivers.demo', role: 'beneficiary',      roles: ['beneficiary'],                   isVerified: false, community: 'Gitega', organisation: '' },
-};
-
 const AuthContext = createContext(null);
 
 // Priority order used to pick the single `role` column (drives RLS) when a
@@ -33,19 +25,10 @@ export function AuthProvider({ children }) {
   const [supabaseUser, setSupabaseUser]   = useState(null);
   const [dbUser,       setDbUser]         = useState(null);
   const [loading,      setLoading]        = useState(true);
-  const [activeRole,   setActiveRole]     = useState(null);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const isRegistering                     = useRef(false);
 
   useEffect(() => {
-    // Demo mode — no Supabase needed
-    const savedDemo = sessionStorage.getItem('rivers_demo_role');
-    if (savedDemo && DEMO_USERS[savedDemo]) {
-      setDbUser(DEMO_USERS[savedDemo]);
-      setLoading(false);
-      return;
-    }
-
     // onAuthStateChange fires immediately with the current session on subscribe,
     // so this single listener handles both the initial load and later sign-ins —
     // deliberately NOT paired with a separate getSession() bootstrap, which used
@@ -182,9 +165,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    sessionStorage.removeItem('rivers_demo_role');
     setDbUser(null);
-    setActiveRole(null);
     setSupabaseUser(null);
     setNeedsProfileCompletion(false);
     await supabase.auth.signOut();
@@ -202,15 +183,7 @@ export function AuthProvider({ children }) {
     return profile;
   };
 
-  const enterDemo = (role) => {
-    sessionStorage.setItem('rivers_demo_role', role);
-    setDbUser(DEMO_USERS[role]);
-    setSupabaseUser(null);
-  };
-
-  const switchRole = (role) => setActiveRole(role);
-  const resetRole  = ()     => setActiveRole(null);
-  const effectiveRole = activeRole ?? dbUser?.role;
+  const effectiveRole = dbUser?.role;
 
   return (
     <AuthContext.Provider value={{
@@ -219,8 +192,6 @@ export function AuthProvider({ children }) {
       loading,
       needsProfileCompletion,
       effectiveRole,
-      switchRole,
-      resetRole,
       login,
       loginWithGoogle,
       registerWithGoogle,
@@ -229,7 +200,6 @@ export function AuthProvider({ children }) {
       logout,
       resetPassword,
       refreshProfile,
-      enterDemo,
     }}>
       {children}
     </AuthContext.Provider>
