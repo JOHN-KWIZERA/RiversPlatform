@@ -7,7 +7,7 @@ import RiversMark from '../../components/ui/RiversMark';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import RoleCheckboxGroup from '../../components/auth/RoleCheckboxGroup';
+import RoleSelector from '../../components/auth/RoleSelector';
 import { useAuth } from '../../context/AuthContext';
 
 const GOOGLE_SVG = (
@@ -29,20 +29,20 @@ export default function Signup() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
-    defaultValues: { roles: [searchParams.get('role') || 'sponsor'] },
+    defaultValues: { role: searchParams.get('role') || 'sponsor' },
     shouldUnregister: true,
   });
 
-  const selectedRoles = watch('roles') || [];
+  const selectedRole = watch('role');
 
   const onSubmit = async (data) => {
-    if (!data.roles?.length) {
-      toast.error('Choose at least one role to continue.');
+    if (!data.role) {
+      toast.error('Choose a role to continue.');
       return;
     }
     setLoading(true);
     try {
-      await authRegister(data);
+      await authRegister({ ...data, roles: [data.role] });
       toast.success('Account created! Welcome to RIVERS.');
       navigate('/dashboard');
     } catch (err) {
@@ -53,14 +53,14 @@ export default function Signup() {
   };
 
   const handleGoogle = async () => {
-    const { roles, organisation, community, phone } = watch();
-    if (!roles?.length) {
-      toast.error('Choose at least one role to continue.');
+    const { role, organisation, community, phone } = watch();
+    if (!role) {
+      toast.error('Choose a role to continue.');
       return;
     }
     setGoogleLoading(true);
     try {
-      await registerWithGoogle({ roles, organisation, community, phone });
+      await registerWithGoogle({ roles: [role], organisation, community, phone });
       toast.success('Account created! Welcome to RIVERS.');
       navigate('/dashboard');
     } catch (err) {
@@ -110,8 +110,8 @@ export default function Signup() {
 
           {/* Role cards */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">I am a… (choose one or more)</p>
-            <RoleCheckboxGroup selectedRoles={selectedRoles} register={register} t={t} />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">I am a…</p>
+            <RoleSelector selectedRole={selectedRole} register={register} t={t} />
           </div>
 
         </div>
@@ -182,7 +182,7 @@ export default function Signup() {
                 {...register('password', { required: 'Password is required', minLength: { value: 8, message: 'Minimum 8 characters' } })}
               />
 
-              {selectedRoles.includes('community_leader') && (
+              {selectedRole === 'community_leader' && (
                 <Input
                   label={t('auth.community')}
                   leftElement={<MapPin size={15} />}
@@ -191,7 +191,7 @@ export default function Signup() {
                   {...register('community', { required: 'Community is required for leaders' })}
                 />
               )}
-              {selectedRoles.includes('sponsor') && (
+              {selectedRole === 'sponsor' && (
                 <Input
                   label={t('auth.organisation')}
                   leftElement={<Building2 size={15} />}

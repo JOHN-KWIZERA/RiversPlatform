@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import RiversMark from '../../components/ui/RiversMark';
-import RoleCheckboxGroup from '../../components/auth/RoleCheckboxGroup';
+import RoleSelector from '../../components/auth/RoleSelector';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CompleteProfile() {
@@ -17,20 +17,20 @@ export default function CompleteProfile() {
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, watch } = useForm({
-    defaultValues: { roles: ['sponsor'] },
+    defaultValues: { role: 'sponsor' },
   });
 
-  const selectedRoles = watch('roles') || [];
+  const selectedRole = watch('role');
 
   const onSubmit = async (data) => {
-    if (!data.roles?.length) {
-      toast.error('Choose at least one role to continue.');
+    if (!data.role) {
+      toast.error('Choose a role to continue.');
       return;
     }
     setLoading(true);
     try {
       await completeGoogleProfile({
-        roles: data.roles,
+        roles: [data.role],
         organisation: data.organisation,
         community: data.community,
         phone: data.phone,
@@ -63,8 +63,8 @@ export default function CompleteProfile() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">I am a… (choose one or more)</p>
-              <RoleCheckboxGroup selectedRoles={selectedRoles} register={register} t={t} />
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">I am a…</p>
+              <RoleSelector selectedRole={selectedRole} register={register} t={t} />
             </div>
 
             <Input
@@ -75,7 +75,7 @@ export default function CompleteProfile() {
               {...register('phone')}
             />
 
-            {selectedRoles.includes('community_leader') && (
+            {selectedRole === 'community_leader' && (
               <Input
                 label={t('auth.community')}
                 leftElement={<MapPin size={15} />}
@@ -83,7 +83,7 @@ export default function CompleteProfile() {
                 {...register('community')}
               />
             )}
-            {selectedRoles.includes('sponsor') && (
+            {selectedRole === 'sponsor' && (
               <Input
                 label={t('auth.organisation')}
                 leftElement={<Building2 size={15} />}

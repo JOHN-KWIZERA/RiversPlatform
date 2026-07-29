@@ -9,12 +9,12 @@ export const ROLE_META = {
   beneficiary:      { icon: Home,      color: 'bg-blue-500',   activeText: 'text-blue-700',   desc: 'Access community support' },
 };
 
-export default function RoleCheckboxGroup({ selectedRoles, register, t }) {
+export default function RoleSelector({ selectedRole, register, t }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {ROLES.map((r) => {
         const { icon: Icon, color, activeText, desc } = ROLE_META[r];
-        const active = selectedRoles.includes(r);
+        const active = selectedRole === r;
         return (
           <label
             key={r}
@@ -22,7 +22,7 @@ export default function RoleCheckboxGroup({ selectedRoles, register, t }) {
               active ? 'bg-white border-brand-300 shadow-sm' : 'bg-white border-gray-200 hover:border-gray-300'
             }`}
           >
-            <input type="checkbox" value={r} {...register('roles')} className="sr-only" />
+            <input type="radio" value={r} {...register('role')} className="sr-only" />
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${active ? color : 'bg-gray-100'}`}>
               <Icon size={17} className={active ? 'text-white' : 'text-gray-400'} />
             </div>

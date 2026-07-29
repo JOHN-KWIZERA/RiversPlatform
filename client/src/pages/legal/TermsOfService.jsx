@@ -16,7 +16,7 @@ export default function TermsOfService() {
       <Section title="2. Eligibility and Accounts">
         <ul>
           <li>You must provide accurate information when creating your account and keep it up to date.</li>
-          <li>Each person may hold one account, which may carry one or more roles: community leader, sponsor, volunteer, and/or beneficiary.</li>
+          <li>Each person may hold one account with a single assigned role: community leader, sponsor, volunteer, or beneficiary.</li>
           <li>Certain roles and actions require verification before they become fully active.</li>
           <li>Accounts may be suspended if they violate these Terms; suspension blocks access while preserving existing records for accountability.</li>
         </ul>
