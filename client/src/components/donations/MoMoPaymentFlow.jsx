@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Loader2, Phone, Lock, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Phone, AlertCircle } from 'lucide-react';
 import Button from '../ui/Button';
 import { formatCurrency } from '../../lib/utils';
 
-const STEPS = { PHONE: 'phone', PIN: 'pin', PROCESSING: 'processing', SUCCESS: 'success', FAILED: 'failed' };
+const STEPS = { PHONE: 'phone', PROCESSING: 'processing', SUCCESS: 'success', FAILED: 'failed' };
 
 export default function MoMoPaymentFlow({ amount, campaignTitle, onSuccess, onCancel }) {
   const [step, setStep] = useState(STEPS.PHONE);
   const [phone, setPhone] = useState('');
-  const [pin, setPin] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [receipt, setReceipt] = useState(null);
 
@@ -39,11 +38,6 @@ export default function MoMoPaymentFlow({ amount, campaignTitle, onSuccess, onCa
       return;
     }
     setPhoneError('');
-    setStep(STEPS.PIN);
-  };
-
-  const handlePinSubmit = () => {
-    if (pin.length !== 5) return;
     setStep(STEPS.PROCESSING);
   };
 
@@ -87,7 +81,7 @@ export default function MoMoPaymentFlow({ amount, campaignTitle, onSuccess, onCa
             )}
           </div>
           <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3 leading-relaxed">
-            You will receive a payment prompt on <strong>{phone || 'your phone'}</strong>. Approve it by entering your MoMo PIN.
+            You will receive a payment prompt on <strong>{phone || 'your phone'}</strong>. Approve it there using your MoMo PIN — you will never be asked to enter your PIN in this app.
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
@@ -98,65 +92,13 @@ export default function MoMoPaymentFlow({ amount, campaignTitle, onSuccess, onCa
         </div>
       )}
 
-      {/* Step: PIN */}
-      {step === STEPS.PIN && (
-        <div className="flex flex-col gap-4">
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-full bg-[#FFCC00]/20 flex items-center justify-center mx-auto mb-3">
-              <Lock size={24} className="text-[#FFCC00]" />
-            </div>
-            <p className="text-sm font-semibold text-[#001E2B]">Enter your MoMo PIN</p>
-            <p className="text-xs text-gray-500 mt-1">Confirm payment of <strong>{formatCurrency(amount)}</strong> to {campaignTitle}</p>
-          </div>
-          <div className="flex justify-center gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center text-lg font-bold transition-all ${
-                pin.length > i ? 'border-[#FFCC00] bg-[#FFCC00]/10 text-[#001E2B]' : 'border-gray-200 text-transparent'
-              }`}>
-                {pin.length > i ? '●' : ''}
-              </div>
-            ))}
-          </div>
-          {/* Numpad */}
-          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto w-full">
-            {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k, i) => (
-              <button
-                key={i}
-                disabled={k === ''}
-                onClick={() => {
-                  if (k === '⌫') setPin(p => p.slice(0,-1));
-                  else if (pin.length < 5) setPin(p => p + k);
-                }}
-                className={`h-12 rounded-xl text-sm font-bold transition-all ${
-                  k === '' ? 'invisible' :
-                  k === '⌫' ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' :
-                  'bg-gray-50 text-[#001E2B] hover:bg-[#FFCC00]/20 border border-gray-200'
-                }`}
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" className="flex-1" onClick={() => setStep(STEPS.PHONE)}>Back</Button>
-            <Button
-              className="flex-1 bg-[#FFCC00] text-[#001E2B] hover:bg-[#f0c000] border-0"
-              disabled={pin.length !== 5}
-              onClick={handlePinSubmit}
-            >
-              Confirm Payment
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Step: Processing */}
       {step === STEPS.PROCESSING && (
         <div className="flex flex-col items-center gap-4 py-6">
           <Loader2 size={40} className="text-[#FFCC00] animate-spin" />
           <div className="text-center">
-            <p className="font-semibold text-[#001E2B]">Processing payment…</p>
-            <p className="text-xs text-gray-500 mt-1">Please wait. Do not close this window.</p>
+            <p className="font-semibold text-[#001E2B]">Waiting for approval on your phone…</p>
+            <p className="text-xs text-gray-500 mt-1">Check <strong>{phone || 'your phone'}</strong> for the MoMo prompt and enter your PIN there to confirm.</p>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
             <div className="h-full bg-[#FFCC00] rounded-full animate-pulse w-3/4" />
